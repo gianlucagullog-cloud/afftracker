@@ -499,10 +499,9 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
         <div style="font-size:11px;font-weight:700;color:var(--slate3);letter-spacing:.08em;text-transform:uppercase" id="g-pivot-title">Performance mensile affiliati</div>
         <div style="display:flex;gap:6px;align-items:center">
           <span style="font-size:11px;color:var(--slate3);margin-right:2px">Mostra:</span>
-          <button id="g-show-rake" onclick="setMetricView('rake')" class="metric-toggle active">Rake</button>
-          <button id="g-show-turnover" onclick="setMetricView('turnover')" class="metric-toggle">Giocato</button>
-          <button id="g-show-both" onclick="setMetricView('both')" class="metric-toggle">Rake + Giocato</button>
-          <button id="g-show-conti" onclick="setMetricView('conti')" class="metric-toggle">Conti attivi</button>
+          <button id="g-show-rake" onclick="toggleMetricCol('rake')" class="metric-toggle active">Rake</button>
+          <button id="g-show-turnover" onclick="toggleMetricCol('turnover')" class="metric-toggle">Giocato</button>
+          <button id="g-show-conti" onclick="toggleMetricCol('conti')" class="metric-toggle">Conti attivi</button>
         </div>
       </div>
       <div id="g-pivot" style="overflow-x:auto"></div>
@@ -1034,9 +1033,18 @@ function populateTrendFilters(){
 function renderTrend(){populateTrendFilters();renderGrafico();}
 
 /* ── metric view state ── */
-let gMetricView='rake'; /* 'rake' | 'turnover' | 'both' */
+let gActiveCols=new Set(['rake']); /* active columns: 'rake','turnover','conti' */
 let gSortCol=null;
 let gSortDir=1;
+function toggleMetricCol(col){
+  if(gActiveCols.has(col)){if(gActiveCols.size>1)gActiveCols.delete(col);}
+  else gActiveCols.add(col);
+  ['rake','turnover','conti'].forEach(function(k){
+    const el=document.getElementById('g-show-'+k);
+    if(el)el.classList.toggle('active',gActiveCols.has(k));
+  });
+  renderGrafico();
+}
 /* per-table sort state */
 const tblSort={
   overview: {col:null, dir:1},
@@ -1078,14 +1086,7 @@ function toggleAllMonths(){
   renderGrafico();
 }
 
-function setMetricView(v){
-  gMetricView=v;
-  document.querySelectorAll('.metric-toggle').forEach(b=>b.classList.remove('active'));
-  const idMap={rake:'g-show-rake',turnover:'g-show-turnover',both:'g-show-both',conti:'g-show-conti'};
-  const el=document.getElementById(idMap[v]);
-  if(el)el.classList.add('active');
-  renderGrafico();
-}
+
 
 function pivotSort(col){
   if(gSortCol===col){gSortDir*=-1;}else{gSortCol=col;gSortDir=1;}
@@ -1186,10 +1187,15 @@ function renderGrafico(){
     return;
   }
 
-  const showRake=gMetricView==='rake'||gMetricView==='both';
-  const showTurn=gMetricView==='turnover'||gMetricView==='both';
-  const showConti=gMetricView==='conti';
-  const colsPerMonth=(showRake&&showTurn)?2:1;
+  const showRake=gActiveCols.has('rake');
+  const showTurn=gActiveCols.has('turnover');
+  const showConti=gActiveCols.has('conti');
+  const _mlCols=[];
+  if(showRake)_mlCols.push('Rake');
+  if(showTurn)_mlCols.push('Giocato');
+  if(showConti)_mlCols.push('Conti attivi');
+  const metricLabel=_mlCols.join(' + ')||'—';
+  const colsPerMonth=[showRake,showTurn,showConti].filter(Boolean).length||1;
 
   /* ── helpers: icons & chips ── */
   function sortIcon(col){
@@ -1241,8 +1247,9 @@ function renderGrafico(){
   </th>`;
 
   /* First month always shown */
-  if(showRake&&showTurn){
-    hCols+=`<th colspan="2" class="th-month-first" style="text-align:center;border-left:1px solid var(--border)">${ml(firstM)}</th>`;
+  const nActCols=[showRake,showTurn,showConti].filter(Boolean).length;
+  if(nActCols>1){
+    hCols+=`<th colspan="${nActCols}" class="th-month-first" style="text-align:center;border-left:1px solid var(--border)">${ml(firstM)}</th>`;
   } else {
     hCols+=`<th class="th-num sortable th-month-first" onclick="pivotSort('${firstM}')" style="border-left:1px solid var(--border)">${ml(firstM)}${sortIcon(firstM)}</th>`;
   }
@@ -1255,8 +1262,8 @@ function renderGrafico(){
       const m=middleMs[i];
       if(gExpandedMonths.has(m)){
         /* expanded: show this month header */
-        if(showRake&&showTurn){
-          hCols+=`<th colspan="2" style="text-align:center;border-left:1px solid var(--border);background:rgba(255,255,255,.02)">${ml(m)} ${monthToggleBtn(m)}</th>`;
+        if(nActCols>1){
+          hCols+=`<th colspan="${nActCols}" style="text-align:center;border-left:1px solid var(--border);background:rgba(255,255,255,.02)">${ml(m)} ${monthToggleBtn(m)}</th>`;
         } else {
           hCols+=`<th class="th-num sortable" onclick="pivotSort('${m}')" style="border-left:1px solid var(--border);background:rgba(255,255,255,.02)">
             ${ml(m)}${sortIcon(m)} ${monthToggleBtn(m)}</th>`;
@@ -1281,8 +1288,8 @@ function renderGrafico(){
 
   /* Last month always shown (only if different from first) */
   if(filtMs.length>1){
-    if(showRake&&showTurn){
-      hCols+=`<th colspan="2" class="th-month-last" style="text-align:center;border-left:1px solid var(--border)">${ml(lastM)}</th>`;
+    if(nActCols>1){
+      hCols+=`<th colspan="${nActCols}" class="th-month-last" style="text-align:center;border-left:1px solid var(--border)">${ml(lastM)}</th>`;
     } else {
       hCols+=`<th class="th-num sortable th-month-last" onclick="pivotSort('${lastM}')" style="border-left:1px solid var(--border)">${ml(lastM)}${sortIcon(lastM)}</th>`;
     }
@@ -1295,17 +1302,20 @@ function renderGrafico(){
   if(showTurn) hCols+=`<th class="th-num sortable" onclick="pivotSort('var_turn')" style="border-left:2px solid rgba(125,211,252,.25);background:rgba(125,211,252,.03)">Δ Giocato periodo${sortIcon('var_turn')}</th>`;
   if(showConti) hCols+=`<th class="th-num sortable" onclick="pivotSort('total_conti')">Conti attivi ${sortIcon('total_conti')}</th>`;
 
-  /* sub-header for "both" mode */
+  /* sub-header when multiple cols active */
   let subRow='';
-  if(showRake&&showTurn){
+  if(nActCols>1){
     subRow='<tr class="sub-header"><th></th>';
     visibleMs.forEach(m=>{
-      subRow+=`<th class="th-num sortable" onclick="pivotSort('${m}')" style="border-left:1px solid var(--border)">Rake${sortIcon(m)}</th>`;
-      subRow+=`<th class="th-num sortable" onclick="pivotSort('${m}_t')">Turnover${sortIcon(m+'_t')}</th>`;
+      if(showRake)  subRow+=`<th class="th-num sortable" onclick="pivotSort('${m}')" style="border-left:1px solid var(--border)">Rake${sortIcon(m)}</th>`;
+      if(showTurn)  subRow+=`<th class="th-num sortable" onclick="pivotSort('${m}_t')" style="border-left:1px solid var(--border)">Giocato${sortIcon(m+'_t')}</th>`;
+      if(showConti) subRow+=`<th class="th-num" style="border-left:1px solid var(--border)">Conti</th>`;
     });
-    subRow+=`<th class="th-num" style="border-left:2px solid rgba(232,0,28,.35)">Rake</th><th class="th-num">Turnover</th>`;
-    subRow+=`<th class="th-num" style="border-left:2px solid rgba(232,0,28,.35);background:rgba(232,0,28,.04)">Δ Rake</th>`;
-    subRow+=`<th class="th-num" style="background:rgba(125,211,252,.03)">Δ Turnover</th>`;
+    if(showRake)  subRow+=`<th class="th-num" style="border-left:2px solid rgba(232,0,28,.35)">Rake tot.</th>`;
+    if(showTurn)  subRow+=`<th class="th-num">Giocato tot.</th>`;
+    if(showConti) subRow+=`<th class="th-num">Conti</th>`;
+    if(showRake)  subRow+=`<th class="th-num" style="border-left:2px solid rgba(232,0,28,.35);background:rgba(232,0,28,.04)">Δ Rake</th>`;
+    if(showTurn)  subRow+=`<th class="th-num" style="background:rgba(125,211,252,.03)">Δ Giocato</th>`;
     subRow+='</tr>';
   }
 
@@ -1331,6 +1341,14 @@ function renderGrafico(){
     function cellFor(m,mi_visible,field,highlight){
       const d2=affData[aff][m]||{rake:0,turnover:0,conti:0};
       const hl=highlight?'background:rgba(255,255,255,.015)':'';
+      /* multi-col mode: output one cell per active col */
+      if(showRake||showTurn||showConti){
+        let out='';
+        if(showRake) out+=`<td class="td-num" style="border-left:1px solid var(--border);${hl}"><div class="cell-val">${fe(d2.rake)}</div>${mi_visible>0?delta(aff,mi_visible,'rake'):''}</td>`;
+        if(showTurn) out+=`<td class="td-num" style="border-left:1px solid var(--border);${hl}"><div class="cell-val muted">${fe(d2.turnover)}</div>${mi_visible>0?delta(aff,mi_visible,'turnover'):''}</td>`;
+        if(showConti) out+=`<td class="td-num" style="border-left:1px solid var(--border);${hl}"><div class="cell-val" style="color:#7dd3fc">${fn(d2.conti)}</div></td>`;
+        return out;
+      }
       if(field==='both'){
         return `<td class="td-num" style="border-left:1px solid var(--border);${hl}">
           <div class="cell-val">${fe(d2.rake)}</div>${mi_visible>0?delta(aff,mi_visible,'rake'):''}</td>
@@ -1347,7 +1365,7 @@ function renderGrafico(){
           <div class="cell-val muted">${fe(d2.turnover)}</div>${mi_visible>0?delta(aff,mi_visible,'turnover'):''}</td>`;
       }
     }
-    const viewField=showRake&&showTurn?'both':showConti?'conti':showRake?'rake':'turnover';
+    const viewField=showRake&&showTurn?'both':showConti?'conti':showRake?'rake':'turnover'; /* legacy for cellFor */
     let visIdx=0;
 
     /* first month */
