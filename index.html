@@ -1033,13 +1033,29 @@ function renderGrafico(){
 }
 
 function normalizeKey(k){
-  if(/^\d{4}-\d{2}$/.test(k))return k;
+  if(!k) return k;
+  if(/^\d{4}-\d{2}$/.test(k)) return k;
   const it=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
-  const clean=k.replace(/^undefined\s*/,'').trim();
-  const parts=clean.split(' ');
+  const short=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+  const clean = k.replace(/^undefined\s*/,'').trim();
+  const parts = clean.split(' ');
   if(parts.length===2){
-    const mi=it.indexOf(parts[0]);
-    if(mi>=0&&/^\d{4}$/.test(parts[1]))return parts[1]+'-'+String(mi+1).padStart(2,'0');
+    /* "Marzo 2026" or "Mar 2026" */
+    const mi = it.indexOf(parts[0]);
+    const ms = short.indexOf(parts[0]);
+    const mIdx = mi>=0?mi:ms>=0?ms:-1;
+    if(mIdx>=0 && /^\d{4}$/.test(parts[1]))
+      return parts[1]+'-'+String(mIdx+1).padStart(2,'0');
+  }
+  if(parts.length===1){
+    /* plain "Maggio" with no year — assume current year */
+    const mi = it.indexOf(parts[0]);
+    const ms = short.indexOf(parts[0]);
+    const mIdx = mi>=0?mi:ms>=0?ms:-1;
+    if(mIdx>=0){
+      const year = new Date().getFullYear();
+      return year+'-'+String(mIdx+1).padStart(2,'0');
+    }
   }
   return k;
 }
@@ -1197,6 +1213,11 @@ function saveDB(){
   syncToFirestore().catch(e=>console.warn('Firestore sync error:',e));
 }
 function appInit(){
+  /* set default month to current */
+  const now = new Date();
+  const def = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  const mi  = document.getElementById('month-input');
+  if(mi && !mi.value) mi.value = def;
   loadDB();updateBadge();initTheme();renderOverview();renderMonthsList();
 }
 
