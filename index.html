@@ -260,6 +260,25 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
 .sync-dot.syncing{background:#fbbf24;animation:pulse 1s infinite}
 .sync-dot.error{background:#f87171}
 
+
+/* ── AFFILIATO POPUP ── */
+.popup-kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
+.popup-kpi{background:var(--input-bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px}
+.popup-kpi-label{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px}
+.popup-kpi-value{font-size:18px;font-weight:700;color:var(--text);font-family:'Barlow Condensed',sans-serif}
+.popup-month-row{display:grid;grid-template-columns:120px 1fr 1fr 1fr 70px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
+.popup-month-row:last-child{border-bottom:none}
+.popup-month-row.header{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;padding-bottom:8px}
+.popup-bar-wrap{height:6px;background:rgba(128,128,128,.15);border-radius:3px;overflow:hidden}
+.popup-bar-fill{height:6px;border-radius:3px;background:var(--red)}
+.popup-bar-fill.positive{background:#4ade80}
+.delta-badge{font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;text-align:center}
+.delta-badge.up{background:rgba(74,222,128,.12);color:#4ade80}
+.delta-badge.down{background:rgba(248,113,113,.12);color:#f87171}
+.delta-badge.flat{background:rgba(148,163,184,.1);color:#94a3b8}
+.popup-cat-section{margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+
+.clickable-row:hover td{background:rgba(232,0,28,.05) !important}
 </style>
 </head>
 <body>
@@ -507,6 +526,20 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
 
 </div>
 
+
+<!-- AFFILIATO POPUP -->
+<div id="aff-popup-overlay" onclick="closeAffPopup()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;backdrop-filter:blur(3px)"></div>
+<div id="aff-popup" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--card-bg);border:1px solid var(--border);border-radius:16px;width:min(700px,95vw);max-height:85vh;overflow-y:auto;z-index:1001;box-shadow:0 24px 64px rgba(0,0,0,.5)">
+  <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;position:sticky;top:0;background:var(--card-bg);z-index:2">
+    <div>
+      <div id="popup-aff-code" style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;color:var(--text)"></div>
+      <div id="popup-aff-name" style="font-size:13px;color:var(--text3);margin-top:2px"></div>
+    </div>
+    <button onclick="closeAffPopup()" style="background:rgba(255,255,255,.08);border:1px solid var(--border);color:var(--text2);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
+  </div>
+  <div id="popup-body" style="padding:20px 24px"></div>
+</div>
+
 <footer>
   <div style="display:flex;align-items:center"><svg width="120" height="16" viewBox="0 0 220 30" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path d="M10.9465 5.8156C12.6845 5.8156 14.3865 5.82372 16.1522 5.82372C17.9179 5.82372 19.351 6.29228 19.9885 7.94434L20.4598 6.27849C20.5374 5.94136 20.7296 5.84387 20.9454 5.8248L21.0418 5.82941H26.2781C29.1248 5.82944 31.1705 8.14668 30.5053 10.949C30.4138 11.3371 30.3221 11.7502 30.2251 12.0911L26.8463 24.124C26.7742 24.3817 26.5109 24.5896 26.2532 24.5896H21.4798C21.222 24.5896 21.0724 24.3817 21.1417 24.124L24.734 11.1986C24.82 10.8826 24.9031 10.4946 24.407 10.4946H20.4652L16.6844 24.1267C16.6151 24.3817 16.3517 24.5896 16.0967 24.5896H11.3623C11.1073 24.5896 10.9576 24.3817 11.0269 24.1267L14.6082 11.1957C14.7024 10.8464 14.7524 10.4916 14.2812 10.4916H10.3174L6.53634 24.124C6.46701 24.379 6.20388 24.5868 5.94893 24.5869H1.21151C0.956595 24.5868 0.806897 24.379 0.876121 24.124L4.46309 11.1957C4.54901 10.8797 4.6321 10.4916 4.13609 10.4916C2.86935 10.4916 1.61636 10.4862 0.34962 10.4862C0.0973759 10.4862 -0.0523615 10.2809 0.0169363 10.0287L1.03691 6.2728C1.12283 5.91529 1.364 5.81563 1.6162 5.8156L6.00713 5.82372C7.72567 5.82651 9.31659 6.25349 9.88483 7.96924L10.3672 6.2728C10.4614 5.90697 10.6943 5.81562 10.9465 5.8156Z" fill="white"/>
@@ -517,16 +550,10 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
 <path d="M94.8136 1.77955C95.0658 1.77958 95.2156 1.9848 95.1463 2.23702L94.165 5.8045L93.7381 7.27356C94.298 6.7663 94.9965 5.9542 96.1801 5.8045H99.5396C99.7919 5.80451 99.9416 6.00949 99.8723 6.2617L98.8551 10.0149C98.7885 10.2671 98.528 10.4723 98.2758 10.4724H92.9009L90.4727 19.2813C90.4062 19.5169 90.4062 19.6806 90.4727 19.7721C90.5393 19.8635 90.6917 19.9079 90.9272 19.908H96.0109C96.2631 19.908 96.4128 20.1129 96.3436 20.3652L95.7421 22.6022C95.6977 22.7657 95.5729 22.91 95.4205 22.9904L93.0091 24.4927C92.9121 24.5537 92.8067 24.5842 92.7125 24.5842H89.3889C85.4251 24.5842 83.9838 22.6022 85.0648 18.6357L89.5551 2.23702C89.6216 1.98478 89.8824 1.77955 90.1346 1.77955H94.8136Z" fill="white"/>
 <path fill-rule="evenodd" clip-rule="evenodd" d="M133.726 5.87082C137.091 5.85143 138.161 8.00808 137.354 10.9019L135.081 19.0542C134.599 20.7783 133.739 22.1364 132.495 23.1149C131.25 24.0933 129.762 24.5842 128.041 24.5842H122.319C118.954 24.6036 117.884 22.4469 118.691 19.5531L120.966 11.4008C121.446 9.67674 122.305 8.31863 123.55 7.34015C124.795 6.36167 126.283 5.87082 128.005 5.87082H133.726ZM127.996 10.536C127.079 10.536 126.491 10.9989 126.236 11.9192C125.579 14.3058 124.817 16.8948 124.154 19.2759C124.088 19.5143 124.088 19.6779 124.154 19.7694C124.221 19.8608 124.373 19.905 124.609 19.905L127.749 19.9218H128.052C128.972 19.9217 129.559 19.4587 129.812 18.5385C130.469 16.1519 131.231 13.5629 131.893 11.1818C131.96 10.9462 131.96 10.7798 131.893 10.6884C131.827 10.5997 131.674 10.5528 131.439 10.5528L128.298 10.536H127.996Z" fill="white"/>
 <path d="M146.865 5.79611C147.117 5.79618 147.269 6.00132 147.2 6.25629L147.097 6.54999L146.817 7.26517H146.878C147.735 6.51956 149.021 5.80724 150.177 5.80721H153.245C156.61 5.78781 157.689 7.93595 156.899 10.8243C155.829 14.7267 154.796 18.6059 153.728 22.4747L153.265 24.1321C153.198 24.3816 152.941 24.5842 152.691 24.5842H148.051C147.801 24.5842 147.655 24.3816 147.721 24.1321L151.23 11.1042C151.355 10.6469 151.258 10.4751 150.773 10.4751H146.063L142.238 24.1321C142.169 24.3816 141.911 24.5842 141.662 24.5842H137.021C136.772 24.5842 136.622 24.3816 136.692 24.1321L141.573 6.25629C141.639 6.00127 141.903 5.79611 142.155 5.79611H146.865Z" fill="white"/>
-<path d="M165.703 0.731207C165.823 0.299191 166.216 0 166.664 0H215.417C217.722 0 219.393 2.19567 218.779 4.41733L211.94 29.1683C211.821 29.6003 211.428 29.8995 210.98 29.8995H162.227C159.922 29.8995 158.25 27.7038 158.864 25.4822L165.703 0.731207Z" fill="#FF3E5A"/>
-<path d="M170.998 6.72729H179.736C181.164 6.72729 182.12 7.0499 182.608 7.69903C183.095 8.34816 183.15 9.33563 182.781 10.6614C182.537 11.5348 182.147 12.2469 181.612 12.7898C181.081 13.3367 180.507 13.7183 179.889 13.9386C180.979 14.2573 181.557 15.0441 181.628 16.2991C181.648 16.7515 181.573 17.2747 181.404 17.8727C181.002 19.3008 180.373 20.3473 179.515 21.0201C178.658 21.6889 177.513 22.0233 176.085 22.0233H166.69L170.99 6.73123L170.998 6.72729ZM177.662 17.2118C177.906 16.3384 177.595 15.9017 176.722 15.9017H172.351L171.49 18.9625H175.86C176.734 18.9625 177.292 18.5258 177.54 17.6524L177.662 17.2157V17.2118ZM178.724 11.0942C178.968 10.2208 178.658 9.78413 177.784 9.78413H174.07L173.209 12.841H176.923C177.796 12.841 178.355 12.4043 178.603 11.5309L178.724 11.0942Z" fill="white"/>
-<path d="M193.833 22.0193H182.206L186.506 6.72729H198.133L197.271 9.78413H189.575L188.745 12.7347H194.69L193.829 15.7916H187.883L186.994 18.9586H194.69L193.829 22.0154L193.833 22.0193Z" fill="white"/>
-<path d="M203.3 22.0193H199.366L202.808 9.78413H198.221L199.083 6.72729H212.191L211.33 9.78413H206.742L203.3 22.0193Z" fill="white"/>
-</svg></div>
+<path d="M165.703 0.731207C165.823 0.299191 166.216 0 166.664 0H215.417C217.722 0 219.393 2.19567 218.779 4.41733L211.94 29.1683C211.821 29.6003 211.428 29.8995 210.98 29.8995H162.227C159.922 29.8995 158.25 27.7038 158.864 25.4822L165.703 0.731207Z" fill="#FF3E5A"/></svg></div>
   <div class="footer-info">Affiliate Performance Tracker — uso interno</div>
   <div class="footer-adm">🔒 ADM concessione</div>
 </footer>
-
-
 <script>
 /* ════ APP FUNCTIONS ════ */
 let db={};
@@ -775,9 +802,9 @@ function renderOverview(){
   </tr></thead><tbody>${affData.map((a,i)=>{
     const py=a.giocato>0?(a.vinto/a.giocato*100):0;
     const bar=Math.round(a.ggr/maxG*60);
-    return`<tr>
+    return`<tr class="clickable-row" onclick="openAffPopup('${a.aff}',[...selOvMonths].sort(),document.getElementById('ov-cat-filter')?document.getElementById('ov-cat-filter').value:'')" style="cursor:pointer">
       <td><span class="rank ${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':''}">${i+1}</span></td>
-      <td><div class="aff-code">${a.aff}</div></td>
+      <td><div class="aff-code" style="color:var(--red)">${a.aff}</div></td>
       <td><div style="font-size:12px;color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis">${a.padre||'—'}</div></td>
       <td><span class="net-tag">${a.network||'—'}</span></td>
       <td>${fe(a.ggr)}<span class="ggr-bar" style="width:${bar}px"></span></td>
@@ -825,9 +852,9 @@ function renderAffiliati(){
     <th class="sortable" onclick="sortBy('affiliati','vinto')">Vinto ${si('affiliati','vinto')}</th>
     <th class="sortable" onclick="sortBy('affiliati','payout')">Payout % ${si('affiliati','payout')}</th>
     <th class="sortable" onclick="sortBy('affiliati','tickets')">Ticket ${si('affiliati','tickets')}</th>
-  </tr></thead><tbody>${data.map((a,i)=>{const py=a.giocato>0?(a.vinto/a.giocato*100):0;return`<tr>
+  </tr></thead><tbody>${data.map((a,i)=>{const py=a.giocato>0?(a.vinto/a.giocato*100):0;return`<tr class="clickable-row" onclick="openAffPopup('${a.aff}',months().filter(m=>!document.getElementById('aff-month-sel').value||m===document.getElementById('aff-month-sel').value),'')" style="cursor:pointer">
     <td><span class="rank">${i+1}</span></td>
-    <td><div class="aff-code">${a.aff}</div></td>
+    <td><div class="aff-code" style="color:var(--red)">${a.aff}</div></td>
     <td><div style="font-size:12px;color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis">${a.padre||'—'}</div></td>
     <td><span class="net-tag">${a.network||'—'}</span></td>
     <td>${fe(a.ggr)}</td><td>${fe(a.rake)}</td><td>${fe(a.giocato)}</td><td>${fe(a.vinto)}</td>
@@ -1502,6 +1529,135 @@ function deleteMonth(m){
   renderMonthsList();
 }
 
+/* ── AFFILIATO DETAIL POPUP ── */
+function openAffPopup(affCode, contextMonths, contextCat){
+  /* contextMonths: array of YYYY-MM strings already filtered/selected */
+  const ms = contextMonths || months();
+  const cat = contextCat || '';
+
+  /* gather all rows for this affiliato */
+  const affRows = ms.map(function(m){
+    const rows = (db[m] || []).filter(function(r){
+      return r.aff === affCode && (!cat || r.cat === cat);
+    });
+    return {
+      month: m,
+      ggr:     rows.reduce(function(s,r){return s+(+r.ggr||0);},0),
+      rake:    rows.reduce(function(s,r){return s+(+r.rake||0);},0),
+      giocato: rows.reduce(function(s,r){return s+(+r.giocato||0);},0),
+      vinto:   rows.reduce(function(s,r){return s+(+r.vinto||0);},0),
+      tickets: rows.reduce(function(s,r){return s+(+r.tickets||0);},0),
+      conti:   rows.length > 0 ? Math.max.apply(null, rows.map(function(r){return +r.conti||0;})) : 0
+    };
+  });
+
+  /* totals */
+  const totGGR    = affRows.reduce(function(s,r){return s+r.ggr;},0);
+  const totRake   = affRows.reduce(function(s,r){return s+r.rake;},0);
+  const totGiocato= affRows.reduce(function(s,r){return s+r.giocato;},0);
+  const totVinto  = affRows.reduce(function(s,r){return s+r.vinto;},0);
+  const totTickets= affRows.reduce(function(s,r){return s+r.tickets;},0);
+  const payout    = totGiocato > 0 ? (totVinto / totGiocato * 100) : 0;
+  const maxGGR    = Math.max.apply(null, affRows.map(function(r){return r.ggr;})) || 1;
+
+  /* meta */
+  const meta = (function(){
+    for(var i=0;i<ms.length;i++){
+      const rows=(db[ms[i]]||[]).filter(function(r){return r.aff===affCode;});
+      if(rows.length) return {padre: rows[0].padre||'—', network: rows[0].network||'—'};
+    }
+    return {padre:'—', network:'—'};
+  })();
+
+  /* set header */
+  document.getElementById('popup-aff-code').textContent = affCode;
+  document.getElementById('popup-aff-name').textContent = meta.padre + (meta.network ? ' — ' + meta.network : '');
+
+  /* KPI summary */
+  var kpiHTML = '<div class="popup-kpi-grid">' +
+    '<div class="popup-kpi"><div class="popup-kpi-label">GGR totale periodo</div><div class="popup-kpi-value">' + fe(totGGR) + '</div></div>' +
+    '<div class="popup-kpi"><div class="popup-kpi-label">Rake totale</div><div class="popup-kpi-value">' + fe(totRake) + '</div></div>' +
+    '<div class="popup-kpi"><div class="popup-kpi-label">Giocato</div><div class="popup-kpi-value">' + fe(totGiocato) + '</div></div>' +
+    '<div class="popup-kpi"><div class="popup-kpi-label">Payout medio</div><div class="popup-kpi-value">' + fp(payout) + '</div></div>' +
+    '<div class="popup-kpi"><div class="popup-kpi-label">Ticket totali</div><div class="popup-kpi-value">' + fn(totTickets) + '</div></div>' +
+    '<div class="popup-kpi"><div class="popup-kpi-label">Periodo</div><div class="popup-kpi-value" style="font-size:13px;font-weight:500">' + ml(ms[0]) + (ms.length>1?' → '+ml(ms[ms.length-1]):'') + '</div></div>' +
+    '</div>';
+
+  /* monthly breakdown table */
+  var rowsHTML = '<div class="popup-month-row header">' +
+    '<div>Mese</div><div>GGR</div><div>Rake</div><div>Tendenza</div><div>Δ vs prec.</div>' +
+    '</div>';
+
+  affRows.forEach(function(r, i){
+    var barW = maxGGR > 0 ? Math.max(2, Math.round(Math.abs(r.ggr) / maxGGR * 100)) : 0;
+    var isPos = r.ggr >= 0;
+    var delta = '';
+    var deltaBadge = '<span class="delta-badge flat">—</span>';
+    if(i > 0){
+      var prev = affRows[i-1].ggr;
+      if(prev !== 0){
+        var pct = (r.ggr - prev) / Math.abs(prev) * 100;
+        var cls = pct >= 0.5 ? 'up' : pct <= -0.5 ? 'down' : 'flat';
+        var sign = pct >= 0.5 ? '▲' : pct <= -0.5 ? '▼' : '≈';
+        deltaBadge = '<span class="delta-badge ' + cls + '">' + sign + ' ' + Math.abs(pct).toFixed(1) + '%</span>';
+      }
+    }
+    rowsHTML += '<div class="popup-month-row">' +
+      '<div style="font-weight:600;color:var(--text)">' + ml(r.month) + '</div>' +
+      '<div style="font-weight:600;color:var(--text)">' + fe(r.ggr) + '</div>' +
+      '<div style="color:var(--text2)">' + fe(r.rake) + '</div>' +
+      '<div><div class="popup-bar-wrap"><div class="popup-bar-fill ' + (isPos?'positive':'') + '" style="width:' + barW + '%"></div></div></div>' +
+      '<div>' + deltaBadge + '</div>' +
+      '</div>';
+  });
+
+  /* breakdown by product if no cat filter */
+  var catHTML = '';
+  if(!cat && ms.length > 0){
+    var catMap = {};
+    ms.forEach(function(m){
+      (db[m]||[]).filter(function(r){return r.aff===affCode;}).forEach(function(r){
+        if(!catMap[r.cat]) catMap[r.cat]={ggr:0,rake:0};
+        catMap[r.cat].ggr  += +r.ggr||0;
+        catMap[r.cat].rake += +r.rake||0;
+      });
+    });
+    var cats = Object.entries(catMap).sort(function(a,b){return b[1].ggr-a[1].ggr;});
+    if(cats.length > 1){
+      catHTML = '<div class="popup-cat-section">' +
+        '<div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:12px">Breakdown per prodotto</div>';
+      var maxCatGGR = Math.max.apply(null, cats.map(function(x){return x[1].ggr;})) || 1;
+      cats.forEach(function(x){
+        var barW2 = Math.max(2, Math.round(x[1].ggr / maxCatGGR * 100));
+        catHTML += '<div style="display:grid;grid-template-columns:130px 90px 1fr;gap:8px;align-items:center;margin-bottom:8px">' +
+          '<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text)">' +
+            '<span style="width:8px;height:8px;border-radius:50%;background:' + (CAT_COLORS[x[0]]||'#64748b') + ';flex-shrink:0;display:inline-block"></span>' + x[0] +
+          '</div>' +
+          '<div style="font-size:13px;font-weight:600;color:var(--text)">' + fe(x[1].ggr) + '</div>' +
+          '<div class="popup-bar-wrap"><div class="popup-bar-fill positive" style="width:' + barW2 + '%;background:' + (CAT_COLORS[x[0]]||'#e8001c') + '"></div></div>' +
+          '</div>';
+      });
+      catHTML += '</div>';
+    }
+  }
+
+  document.getElementById('popup-body').innerHTML = kpiHTML + rowsHTML + catHTML;
+  document.getElementById('aff-popup-overlay').style.display = 'block';
+  document.getElementById('aff-popup').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeAffPopup(){
+  document.getElementById('aff-popup-overlay').style.display = 'none';
+  document.getElementById('aff-popup').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+/* close on Escape key */
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape') closeAffPopup();
+});
+
 function saveDB(){
   try{localStorage.setItem('mbt_aff_db',JSON.stringify(db))}catch(e){}
   syncToFirestore().catch(e=>console.warn('Firestore sync error:',e));
@@ -1718,6 +1874,41 @@ async function checkSession(){
 
 /* Start */
 checkSession();
+
+async function deleteMonthFromSupabase(monthKey){ /* alias kept */
+  return deleteMonthFromFirestore(monthKey);
+}
+
+async function deleteMonthFromFirestore(monthKey){
+  if(!fbDb||!currentUser) return;
+  try{
+    const docId = currentUser.uid + '_' + monthKey;
+    await fbDb.collection('uploads').doc(docId).delete();
+  }catch(e){ console.error('Firestore delete error:', e); }
+}
+
+/* ── AUTH STATE LISTENER & INIT ── */
+async function checkSession(){
+  const ok = initFirebase();
+  if(!ok || FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY'){
+    /* Firebase not configured: run offline with localStorage only */
+    console.warn('Firebase not configured — running in offline/local mode');
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    appInit();
+    return;
+  }
+  /* Listen for auth state: fires immediately with current session or null */
+  fbAuth.onAuthStateChanged(user=>{
+    if(user){
+      onLoginSuccess(user);
+    } else {
+      /* No session — show login */
+      document.getElementById('login-screen').style.display = 'flex';
+      document.getElementById('app').style.display = 'none';
+    }
+  });
+}
 
 /* Start */
 checkSession();
