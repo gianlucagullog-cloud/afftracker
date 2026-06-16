@@ -826,7 +826,7 @@ function renderOverview(){
     <th class="sortable" onclick="sortBy('overview','rake')">Rake ${si('overview','rake')}</th>
     <th class="sortable" onclick="sortBy('overview','giocato')">Giocato ${si('overview','giocato')}</th>
     <th class="sortable" onclick="sortBy('overview','payout')">Payout % ${si('overview','payout')}</th>
-    <th class="sortable" onclick="sortBy('overview','conti')">Conti ${si('overview','conti')}</th>
+    <th class="sortable" onclick="sortBy('overview','conti')">Conti attivi ${si('overview','conti')}</th>
   </tr></thead><tbody>${affData.map((a,i)=>{
     const py=a.giocato>0?(a.vinto/a.giocato*100):0;
     const bar=Math.round(a.ggr/maxG*60);
@@ -1158,11 +1158,15 @@ function renderGrafico(){
     const f=firstVal(aff,field), l=lastVal(aff,field);
     if(f===0&&l===0)return null;
     if(f===0)return null;
-    /* When base is negative, a standard % flips sign — correct it:
-       if base<0 and final>base (improvement), result should be positive */
     const raw=((l-f)/Math.abs(f)*100);
-    /* if base negative, flip sign so "less negative / more positive = growth" */
     return f<0 ? -raw : raw;
+  };
+  const varianceConti=(aff)=>{
+    const f=affData[aff][firstM]?.conti||0;
+    const l=affData[aff][lastM]?.conti||0;
+    if(f===0&&l===0)return null;
+    if(f===0)return null;
+    return((l-f)/Math.abs(f)*100);
   };
 
   /* ── sort ── */
@@ -1173,6 +1177,7 @@ function renderGrafico(){
     else if(gSortCol==='total_conti'){va=totConti(a);vb=totConti(b);}
     else if(gSortCol==='var_rake'){va=variance(a,'rake')??-Infinity;vb=variance(b,'rake')??-Infinity;}
     else if(gSortCol==='var_turn'){va=variance(a,'turnover')??-Infinity;vb=variance(b,'turnover')??-Infinity;}
+    else if(gSortCol==='var_conti'){va=varianceConti(a)??-Infinity;vb=varianceConti(b)??-Infinity;}
     else{
       const field=gMetricView==='turnover'?'turnover':'rake';
       va=affData[a][gSortCol]?.[field]||0;
@@ -1275,10 +1280,10 @@ function renderGrafico(){
         while(j<middleMs.length&&!gExpandedMonths.has(middleMs[j]))j++;
         const hiddenMs=middleMs.slice(i,j);
         const span=colsPerMonth*hiddenMs.length;
-        hCols+=`<th colspan="${span}" class="th-collapsed" style="border-left:1px solid var(--border)">
-          <button onclick="expandMonths(${JSON.stringify(hiddenMs)})" class="expand-group-btn">
-            + ${hiddenMs.length} ${hiddenMs.length===1?'mese':'mesi'}
-            <span style="font-size:10px;opacity:.6">${ml(hiddenMs[0])}${hiddenMs.length>1?' → '+ml(hiddenMs[hiddenMs.length-1]):''}</span>
+        hCols+=`<th colspan="${span}" class="th-collapsed" style="border-left:1px solid var(--border);padding:4px 6px !important;min-width:0;width:1%">
+          <button onclick="expandMonths(${JSON.stringify(hiddenMs)})" class="expand-group-btn" style="min-width:0;padding:4px 8px;font-size:11px">
+            <span style="font-weight:700">+${hiddenMs.length}</span>
+            <span style="font-size:10px;opacity:.6;display:block">${ml(hiddenMs[0]).split(' ')[0]}${hiddenMs.length>1?'→'+ml(hiddenMs[hiddenMs.length-1]).split(' ')[0]:''}</span>
           </button>
         </th>`;
         i=j;
@@ -1301,6 +1306,7 @@ function renderGrafico(){
   if(showRake) hCols+=`<th class="th-num sortable" onclick="pivotSort('var_rake')" style="border-left:2px solid rgba(232,0,28,.35);background:rgba(232,0,28,.04)">Δ Rake periodo${sortIcon('var_rake')}</th>`;
   if(showTurn) hCols+=`<th class="th-num sortable" onclick="pivotSort('var_turn')" style="border-left:2px solid rgba(125,211,252,.25);background:rgba(125,211,252,.03)">Δ Giocato periodo${sortIcon('var_turn')}</th>`;
   if(showConti) hCols+=`<th class="th-num sortable" onclick="pivotSort('total_conti')">Conti attivi ${sortIcon('total_conti')}</th>`;
+  if(showConti) hCols+=`<th class="th-num sortable" onclick="pivotSort('var_conti')" style="background:rgba(125,211,252,.04)">Δ Conti periodo${sortIcon('var_conti')}</th>`;
 
   /* sub-header when multiple cols active */
   let subRow='';
@@ -1391,7 +1397,7 @@ function renderGrafico(){
           if(viewField==='both') inner+=' / ';
           if(viewField==='both'||viewField==='turnover') inner+=`<span style="font-size:11px;color:var(--slate3)">${fe(sumT)}</span>`;
           if(viewField==='conti'){const sumC=hiddenMs.reduce((s,hm)=>Math.max(s,affData[aff][hm]?.conti||0),0);inner+=`<span style="font-size:11px;color:#7dd3fc">${fn(sumC)}</span>`;}
-          cells+=`<td colspan="${span}" class="td-num" style="border-left:1px solid var(--border);opacity:.5;font-style:italic">${inner}</td>`;
+          cells+=`<td colspan="${span}" class="td-num" style="border-left:1px solid var(--border);opacity:.4;font-style:italic;padding:4px 6px;font-size:11px">${inner}</td>`;
           i=j;
         }
       }
@@ -1411,7 +1417,19 @@ function renderGrafico(){
       <div class="mini-bar sky" style="width:${Math.round(tt/maxTurn*60)}px"></div></td>`;
     if(showRake) cells+=`<td class="td-num" style="border-left:2px solid rgba(232,0,28,.35);background:rgba(232,0,28,.04)">${varChip(aff,'rake')}</td>`;
     if(showTurn) cells+=`<td class="td-num" style="background:rgba(125,211,252,.03)">${varChip(aff,'turnover')}</td>`;
-    if(showConti) cells+=`<td class="td-num"><div class="cell-val strong" style="color:#7dd3fc">${fn(tc)}</div></td>`;
+    if(showConti){
+      cells+=`<td class="td-num"><div class="cell-val strong" style="color:#7dd3fc">${fn(tc)}</div></td>`;
+      /* Δ conti */
+      const vcpct=varianceConti(aff);
+      const vcHTML=vcpct===null?'<span style="color:var(--text3);font-size:12px">—</span>':(()=>{
+        const up=vcpct>=0;
+        return `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
+          <span class="var-chip ${up?'var-up':'var-down'}">${up?'▲':'▼'} ${Math.abs(vcpct).toFixed(1)}%</span>
+          <span style="font-size:10px;color:var(--text3)">${fn(firstVal(aff,'conti'))} → ${fn(lastVal(aff,'conti'))}</span>
+        </div>`;
+      })();
+      cells+=`<td class="td-num" style="background:rgba(125,211,252,.04)">${vcHTML}</td>`;
+    }
 
     return`<tr>${cells}</tr>`;
   }).join('');
