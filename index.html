@@ -1610,18 +1610,16 @@ function deleteMonth(m){
 
 /* ── AFFILIATO DETAIL POPUP ── */
 function openAffPopup(affCode, contextMonths, contextCat){
-  /* contextMonths: array of YYYY-MM strings already filtered/selected */
-  const ms = contextMonths || months();
-  const cat = contextCat || '';
+  var ms = Array.isArray(contextMonths) ? contextMonths.slice().sort() : (contextMonths ? [contextMonths] : months());
+  var cat = contextCat || '';
 
-  /* gather all rows for this affiliato */
-  const affRows = ms.map(function(m){
-    const rows = (db[m] || []).filter(function(r){
+  /* gather rows per month */
+  var affRows = ms.map(function(m){
+    var rows = (db[m] || []).filter(function(r){
       return r.aff === affCode && (!cat || r.cat === cat);
     });
     return {
-      month: m,
-      ggr:     rows.reduce(function(s,r){return s+(+r.ggr||0);},0),
+      month:   m,
       rake:    rows.reduce(function(s,r){return s+(+r.rake||0);},0),
       giocato: rows.reduce(function(s,r){return s+(+r.giocato||0);},0),
       vinto:   rows.reduce(function(s,r){return s+(+r.vinto||0);},0),
@@ -1631,89 +1629,94 @@ function openAffPopup(affCode, contextMonths, contextCat){
   });
 
   /* totals */
-  const totGGR    = affRows.reduce(function(s,r){return s+r.ggr;},0);
-  const totRake   = affRows.reduce(function(s,r){return s+r.rake;},0);
-  const totGiocato= affRows.reduce(function(s,r){return s+r.giocato;},0);
-  const totVinto  = affRows.reduce(function(s,r){return s+r.vinto;},0);
-  const totTickets= affRows.reduce(function(s,r){return s+r.tickets;},0);
-  const payout    = totGiocato > 0 ? (totVinto / totGiocato * 100) : 0;
-  const maxGGR    = Math.max.apply(null, affRows.map(function(r){return r.ggr;})) || 1;
+  var totRake    = affRows.reduce(function(s,r){return s+r.rake;},0);
+  var totGiocato = affRows.reduce(function(s,r){return s+r.giocato;},0);
+  var totVinto   = affRows.reduce(function(s,r){return s+r.vinto;},0);
+  var totTickets = affRows.reduce(function(s,r){return s+r.tickets;},0);
+  var totConti   = affRows.reduce(function(s,r){return Math.max(s,r.conti);},0);
+  var payout     = totGiocato > 0 ? (totVinto / totGiocato * 100) : 0;
+  var maxRake    = Math.max.apply(null, affRows.map(function(r){return r.rake;})) || 1;
+  var maxGiocato = Math.max.apply(null, affRows.map(function(r){return r.giocato;})) || 1;
 
   /* meta */
-  const meta = (function(){
+  var meta = (function(){
     for(var i=0;i<ms.length;i++){
-      const rows=(db[ms[i]]||[]).filter(function(r){return r.aff===affCode;});
+      var rows=(db[ms[i]]||[]).filter(function(r){return r.aff===affCode;});
       if(rows.length) return {padre: rows[0].padre||'—', network: rows[0].network||'—'};
     }
     return {padre:'—', network:'—'};
   })();
 
-  /* set header */
   document.getElementById('popup-aff-code').textContent = affCode;
-  document.getElementById('popup-aff-name').textContent = meta.padre + (meta.network ? ' — ' + meta.network : '');
+  document.getElementById('popup-aff-name').textContent = meta.padre + (meta.network && meta.network!=='—' ? ' — ' + meta.network : '');
 
-  /* KPI summary */
+  /* ── KPI CARDS ── */
+  var periodoLabel = ms.length===1 ? ml(ms[0]) : (ml(ms[0]) + ' → ' + ml(ms[ms.length-1]));
   var kpiHTML = '<div class="popup-kpi-grid">' +
-    '<div class="popup-kpi"><div class="popup-kpi-label">GGR totale periodo</div><div class="popup-kpi-value">' + fe(totGGR) + '</div></div>' +
     '<div class="popup-kpi"><div class="popup-kpi-label">Rake totale</div><div class="popup-kpi-value">' + fe(totRake) + '</div></div>' +
-    '<div class="popup-kpi"><div class="popup-kpi-label">Giocato</div><div class="popup-kpi-value">' + fe(totGiocato) + '</div></div>' +
+    '<div class="popup-kpi"><div class="popup-kpi-label">Giocato totale</div><div class="popup-kpi-value">' + fe(totGiocato) + '</div></div>' +
     '<div class="popup-kpi"><div class="popup-kpi-label">Payout medio</div><div class="popup-kpi-value">' + fp(payout) + '</div></div>' +
+    '<div class="popup-kpi"><div class="popup-kpi-label">Conti attivi</div><div class="popup-kpi-value" style="color:#7dd3fc">' + fn(totConti) + '</div></div>' +
     '<div class="popup-kpi"><div class="popup-kpi-label">Ticket totali</div><div class="popup-kpi-value">' + fn(totTickets) + '</div></div>' +
-    '<div class="popup-kpi"><div class="popup-kpi-label">Periodo</div><div class="popup-kpi-value" style="font-size:13px;font-weight:500">' + ml(ms[0]) + (ms.length>1?' → '+ml(ms[ms.length-1]):'') + '</div></div>' +
+    '<div class="popup-kpi"><div class="popup-kpi-label">Periodo</div><div class="popup-kpi-value" style="font-size:13px;font-weight:500">' + periodoLabel + '</div></div>' +
     '</div>';
 
-  /* monthly breakdown table */
-  var rowsHTML = '<div class="popup-month-row header">' +
-    '<div>Mese</div><div>GGR</div><div>Rake</div><div>Tendenza</div><div>Δ vs prec.</div>' +
+  /* ── MONTHLY TABLE ── */
+  /* column grid: mese | rake | Δrake | giocato | conti | tendenza rake */
+  var rowsHTML =
+    '<div class="popup-month-row header" style="grid-template-columns:110px 1fr 60px 1fr 70px 1fr">' +
+      '<div>Mese</div><div>Rake</div><div>Δ</div><div>Giocato</div><div>Conti</div><div>Tendenza</div>' +
     '</div>';
 
   affRows.forEach(function(r, i){
-    var barW = maxGGR > 0 ? Math.max(2, Math.round(Math.abs(r.ggr) / maxGGR * 100)) : 0;
-    var isPos = r.ggr >= 0;
-    var delta = '';
+    var barW = Math.max(2, Math.round(r.rake / maxRake * 100));
     var deltaBadge = '<span class="delta-badge flat">—</span>';
     if(i > 0){
-      var prev = affRows[i-1].ggr;
+      var prev = affRows[i-1].rake;
       if(prev !== 0){
-        var pct = (r.ggr - prev) / Math.abs(prev) * 100;
+        var pct = (r.rake - prev) / Math.abs(prev) * 100;
         var cls = pct >= 0.5 ? 'up' : pct <= -0.5 ? 'down' : 'flat';
         var sign = pct >= 0.5 ? '▲' : pct <= -0.5 ? '▼' : '≈';
         deltaBadge = '<span class="delta-badge ' + cls + '">' + sign + ' ' + Math.abs(pct).toFixed(1) + '%</span>';
       }
     }
-    rowsHTML += '<div class="popup-month-row">' +
-      '<div style="font-weight:600;color:var(--text)">' + ml(r.month) + '</div>' +
-      '<div style="font-weight:600;color:var(--text)">' + fe(r.ggr) + '</div>' +
-      '<div style="color:var(--text2)">' + fe(r.rake) + '</div>' +
-      '<div><div class="popup-bar-wrap"><div class="popup-bar-fill ' + (isPos?'positive':'') + '" style="width:' + barW + '%"></div></div></div>' +
-      '<div>' + deltaBadge + '</div>' +
+    rowsHTML +=
+      '<div class="popup-month-row" style="grid-template-columns:110px 1fr 60px 1fr 70px 1fr">' +
+        '<div style="font-weight:600;color:var(--text)">' + ml(r.month) + '</div>' +
+        '<div style="font-weight:700;color:var(--text)">' + fe(r.rake) + '</div>' +
+        '<div>' + deltaBadge + '</div>' +
+        '<div style="color:var(--text2)">' + fe(r.giocato) + '</div>' +
+        '<div style="color:#7dd3fc;font-weight:600">' + fn(r.conti) + '</div>' +
+        '<div><div class="popup-bar-wrap"><div class="popup-bar-fill positive" style="width:' + barW + '%"></div></div></div>' +
       '</div>';
   });
 
-  /* breakdown by product if no cat filter */
+  /* ── PRODUCT BREAKDOWN ── */
   var catHTML = '';
   if(!cat && ms.length > 0){
     var catMap = {};
     ms.forEach(function(m){
       (db[m]||[]).filter(function(r){return r.aff===affCode;}).forEach(function(r){
-        if(!catMap[r.cat]) catMap[r.cat]={ggr:0,rake:0};
-        catMap[r.cat].ggr  += +r.ggr||0;
-        catMap[r.cat].rake += +r.rake||0;
+        if(!catMap[r.cat]) catMap[r.cat]={rake:0,giocato:0};
+        catMap[r.cat].rake    += +r.rake||0;
+        catMap[r.cat].giocato += +r.giocato||0;
       });
     });
-    var cats = Object.entries(catMap).sort(function(a,b){return b[1].ggr-a[1].ggr;});
+    var cats = Object.entries(catMap).sort(function(a,b){return b[1].rake-a[1].rake;});
     if(cats.length > 1){
+      var maxCatRake = Math.max.apply(null, cats.map(function(x){return x[1].rake;})) || 1;
       catHTML = '<div class="popup-cat-section">' +
         '<div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:12px">Breakdown per prodotto</div>';
-      var maxCatGGR = Math.max.apply(null, cats.map(function(x){return x[1].ggr;})) || 1;
       cats.forEach(function(x){
-        var barW2 = Math.max(2, Math.round(x[1].ggr / maxCatGGR * 100));
-        catHTML += '<div style="display:grid;grid-template-columns:130px 90px 1fr;gap:8px;align-items:center;margin-bottom:8px">' +
-          '<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text)">' +
-            '<span style="width:8px;height:8px;border-radius:50%;background:' + (CAT_COLORS[x[0]]||'#64748b') + ';flex-shrink:0;display:inline-block"></span>' + x[0] +
-          '</div>' +
-          '<div style="font-size:13px;font-weight:600;color:var(--text)">' + fe(x[1].ggr) + '</div>' +
-          '<div class="popup-bar-wrap"><div class="popup-bar-fill positive" style="width:' + barW2 + '%;background:' + (CAT_COLORS[x[0]]||'#e8001c') + '"></div></div>' +
+        var bw = Math.max(2, Math.round(x[1].rake / maxCatRake * 100));
+        catHTML +=
+          '<div style="display:grid;grid-template-columns:130px 90px 90px 1fr;gap:8px;align-items:center;margin-bottom:8px">' +
+            '<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text)">' +
+              '<span style="width:8px;height:8px;border-radius:50%;background:' + (CAT_COLORS[x[0]]||'#64748b') + ';flex-shrink:0;display:inline-block"></span>' + x[0] +
+            '</div>' +
+            '<div style="font-size:13px;font-weight:600;color:var(--text)">R: ' + fe(x[1].rake) + '</div>' +
+            '<div style="font-size:12px;color:var(--text2)">G: ' + fe(x[1].giocato) + '</div>' +
+            '<div class="popup-bar-wrap"><div class="popup-bar-fill positive" style="width:' + bw + '%;background:' + (CAT_COLORS[x[0]]||'#e8001c') + '"></div></div>' +
           '</div>';
       });
       catHTML += '</div>';
