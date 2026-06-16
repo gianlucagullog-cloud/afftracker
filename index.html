@@ -497,211 +497,6 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
 
 
 <script>
-
-/* ════════════════════════════════════════════════════
-   FIREBASE CONFIGURATION
-   Sostituisci con i valori dal tuo progetto Firebase
-   Console → Project Settings → Your apps → Config
-   ════════════════════════════════════════════════════ */
-const FIREBASE_CONFIG = {
-  apiKey:            "AIzaSyBX4sOy3B-x8u45xSINrFzpauZjSXQ0f6k",
-  authDomain:        "affiliates-tracker-8cd32.firebaseapp.com",
-  projectId:         "affiliates-tracker-8cd32",
-  storageBucket:     "affiliates-tracker-8cd32.firebasestorage.app",
-  messagingSenderId: "1050592939048",
-  appId:             "1:1050592939048:web:fee1063acb250f41dab91d"
-};
-
-/* ── Firebase instances ── */
-let fbApp  = null;
-let fbAuth = null;
-let fbDb   = null;
-let currentUser = null;
-
-function initFirebase(){
-  if(!window.firebase){ console.warn('Firebase SDK not loaded'); return false; }
-  if(!fbApp) fbApp = firebase.initializeApp(FIREBASE_CONFIG);
-  fbAuth = firebase.auth();
-  fbDb   = firebase.firestore();
-  return true;
-}
-
-/* ── SYNC STATUS UI ── */
-function setSyncStatus(state){
-  const dot = document.getElementById('sync-dot');
-  const txt = document.getElementById('sync-txt');
-  if(!dot||!txt) return;
-  dot.className = 'sync-dot' + (state==='syncing'?' syncing':state==='error'?' error':'');
-  txt.textContent = state==='syncing'?'Sincronizzazione...' : state==='error'?'Errore sync' : 'Sincronizzato';
-}
-
-/* ── TOAST ── */
-function showToast(msg, type='success'){
-  let t = document.getElementById('toast');
-  if(!t){
-    t = document.createElement('div');
-    t.id = 'toast';
-    document.body.appendChild(t);
-    t.style.cssText = 'position:fixed;bottom:24px;right:24px;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;font-family:Inter,sans-serif;z-index:9999;transition:opacity .3s;pointer-events:none';
-  }
-  t.textContent = msg;
-  t.style.background = type==='error'?'#7f1d1d':type==='warning'?'#78350f':'#14532d';
-  t.style.color      = type==='error'?'#fca5a5':type==='warning'?'#fcd34d':'#86efac';
-  t.style.border     = `1px solid ${type==='error'?'rgba(248,113,113,.3)':type==='warning'?'rgba(252,211,77,.3)':'rgba(134,239,172,.3)'}`;
-  t.style.opacity    = '1';
-  clearTimeout(t._timer);
-  t._timer = setTimeout(()=>{ t.style.opacity='0'; }, 3000);
-}
-
-/* ── LOGIN ── */
-async function doLogin(){
-  const email = document.getElementById('login-email').value.trim();
-  const pass  = document.getElementById('login-password').value;
-  const btn   = document.getElementById('login-btn');
-  const errEl = document.getElementById('login-error');
-  if(!email||!pass){ errEl.textContent='Inserisci email e password'; return; }
-  btn.disabled = true;
-  btn.innerHTML = '<span class="login-spinner"></span>Accesso in corso...';
-  errEl.textContent = '';
-  try{
-    const cred = await fbAuth.signInWithEmailAndPassword(email, pass);
-    /* onLoginSuccess called by auth state listener */
-  }catch(e){
-    const msg = e.code==='auth/invalid-credential'||e.code==='auth/wrong-password'||e.code==='auth/user-not-found'
-      ? 'Credenziali non valide'
-      : e.code==='auth/too-many-requests'
-      ? 'Troppi tentativi. Riprova tra qualche minuto.'
-      : e.message;
-    errEl.textContent = msg;
-    btn.disabled = false;
-    btn.textContent = 'Accedi';
-  }
-}
-
-document.addEventListener('keydown', e=>{
-  if(e.key==='Enter' && document.getElementById('login-screen').style.display!=='none') doLogin();
-});
-
-function onLoginSuccess(user){
-  currentUser = user;
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-  const up = document.getElementById('user-pill-email');
-  if(up) up.textContent = user.email;
-  appInit();
-}
-
-async function doLogout(){
-  await fbAuth.signOut();
-  currentUser = null;
-  db = {};
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('login-password').value = '';
-  document.getElementById('login-error').textContent = '';
-}
-
-/* ── FIRESTORE DATA LAYER ──
-   Collection: "uploads"
-   Document ID: "{userId}_{monthKey}"   e.g. "uid123_2026-01"
-   Fields: userId, monthKey, data (array), updatedAt
-── */
-
-async function syncToSupabase(){ /* alias kept for compatibility */
-  return syncToFirestore();
-}
-
-async function syncToFirestore(){
-  if(!fbDb||!currentUser){ return; }
-  setSyncStatus('syncing');
-  try{
-    const batch = fbDb.batch();
-    Object.entries(db).forEach(([monthKey, rows])=>{
-      const docId  = currentUser.uid + '_' + monthKey;
-      const docRef = fbDb.collection('uploads').doc(docId);
-      batch.set(docRef, {
-        userId:    currentUser.uid,
-        monthKey,
-        data:      rows,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-    });
-    await batch.commit();
-    setSyncStatus('ok');
-  }catch(e){
-    setSyncStatus('error');
-    console.error('Firestore sync error:', e);
-    showToast('Errore sincronizzazione cloud', 'error');
-  }
-}
-
-async function loadFromSupabase(){ /* alias kept for compatibility */
-  return loadFromFirestore();
-}
-
-async function loadFromFirestore(){
-  if(!fbDb||!currentUser){ return; }
-  setSyncStatus('syncing');
-  try{
-    const snap = await fbDb.collection('uploads')
-      .where('userId','==', currentUser.uid)
-      .orderBy('monthKey','asc')
-      .get();
-    if(!snap.empty){
-      snap.forEach(doc=>{
-        const {monthKey, data} = doc.data();
-        if(monthKey && data) db[normalizeKey(monthKey)] = data;
-      });
-      try{ localStorage.setItem('mbt_aff_db', JSON.stringify(db)); }catch(e){}
-      updateBadge();
-      renderOverview();
-      renderMonthsList();
-    }
-    setSyncStatus('ok');
-  }catch(e){
-    setSyncStatus('error');
-    console.error('Firestore load error:', e);
-  }
-}
-
-async function deleteMonthFromSupabase(monthKey){ /* alias kept */
-  return deleteMonthFromFirestore(monthKey);
-}
-
-async function deleteMonthFromFirestore(monthKey){
-  if(!fbDb||!currentUser) return;
-  try{
-    const docId = currentUser.uid + '_' + monthKey;
-    await fbDb.collection('uploads').doc(docId).delete();
-  }catch(e){ console.error('Firestore delete error:', e); }
-}
-
-/* ── AUTH STATE LISTENER & INIT ── */
-async function checkSession(){
-  const ok = initFirebase();
-  if(!ok || FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY'){
-    /* Firebase not configured: run offline with localStorage only */
-    console.warn('Firebase not configured — running in offline/local mode');
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    appInit();
-    return;
-  }
-  /* Listen for auth state: fires immediately with current session or null */
-  fbAuth.onAuthStateChanged(user=>{
-    if(user){
-      onLoginSuccess(user);
-    } else {
-      /* No session — show login */
-      document.getElementById('login-screen').style.display = 'flex';
-      document.getElementById('app').style.display = 'none';
-    }
-  });
-}
-
-/* Start */
-checkSession();
-
 /* ════ APP FUNCTIONS ════ */
 let db={};
 let pendingData=null;
@@ -1288,6 +1083,115 @@ function initTheme(){
     applyLogoTheme(true);
   }
 }
+/* ── UPLOAD & DATA MANAGEMENT ── */
+function updateBadge(){
+  document.getElementById('months-badge').textContent = months().length;
+}
+
+function handleFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const data = new Uint8Array(ev.target.result);
+    const wb   = XLSX.read(data, {type:'array'});
+    const ws   = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1});
+    if(rows.length < 2){ alert('File non valido o vuoto'); return; }
+    const h = rows[0].map(x=>(x||'').toString().toLowerCase().trim());
+    const i = {
+      cat:     h.indexOf('categoria'),
+      cod:     h.indexOf('cod punto'),
+      padre:   h.indexOf('padre'),
+      lv2:     h.indexOf('cod liv 2'),
+      lv3:     h.indexOf('cod liv 3'),
+      buyIn:   h.indexOf('buy in'),
+      giocato: h.indexOf('giocato'),
+      vinto:   h.indexOf('vinto'),
+      ggr:     h.indexOf('ggr'),
+      rake:    h.indexOf('rake'),
+      tickets: h.indexOf('num ticket'),
+      conti:   h.indexOf('conti attivi')
+    };
+    pendingData = rows.slice(1).filter(r=>r[i.cod]).map(r=>({
+      cat:     (r[i.cat]||'').toString().toLowerCase().trim(),
+      aff:     (r[i.cod]||'').toString().trim(),
+      padre:   (r[i.padre]||'').toString().trim(),
+      network: (r[i.lv3]||r[i.lv2]||'').toString().trim(),
+      buyIn:   parseFloat(r[i.buyIn])||0,
+      giocato: parseFloat(r[i.giocato])||0,
+      vinto:   parseFloat(r[i.vinto])||0,
+      ggr:     parseFloat(r[i.ggr])||0,
+      rake:    parseFloat(r[i.rake])||0,
+      tickets: parseInt(r[i.tickets])||0,
+      conti:   parseInt(r[i.conti])||0
+    }));
+    showPreview();
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function showPreview(){
+  if(!pendingData) return;
+  const aData = byAff(pendingData);
+  const totalGGR = pendingData.reduce((s,r)=>s+(+r.ggr||0),0);
+  document.getElementById('preview-content').innerHTML =
+    `<div class="preview-stat">Righe: <strong>${pendingData.length}</strong> &nbsp;•&nbsp; Affiliati: <strong>${aData.length}</strong> &nbsp;•&nbsp; GGR totale: <strong>${fe(totalGGR)}</strong></div>`;
+  document.getElementById('preview-table-wrap').innerHTML =
+    `<table><thead><tr><th>Affiliato</th><th>GGR</th><th>Giocato</th><th>Rake</th><th>Ticket</th></tr></thead><tbody>
+    ${aData.slice(0,8).map(a=>`<tr><td class="aff-code">${a.aff}</td><td>${fe(a.ggr)}</td><td>${fe(a.giocato)}</td><td>${fe(a.rake)}</td><td>${fn(a.tickets)}</td></tr>`).join('')}
+    ${aData.length>8?`<tr><td colspan="5" style="color:var(--text3);font-size:12px;padding:10px 14px">... e altri ${aData.length-8} affiliati</td></tr>`:''}
+    </tbody></table>`;
+  document.getElementById('preview-zone').style.display = 'block';
+}
+
+function confirmUpload(){
+  const m = document.getElementById('month-input').value;
+  if(!m){ alert('Seleziona il mese di riferimento'); return; }
+  db[m] = pendingData;
+  saveDB();
+  pendingData = null;
+  document.getElementById('preview-zone').style.display = 'none';
+  document.getElementById('file-input').value = '';
+  updateBadge();
+  renderMonthsList();
+  showToast('✓ Dati salvati per ' + ml(m));
+}
+
+function cancelUpload(){
+  pendingData = null;
+  document.getElementById('preview-zone').style.display = 'none';
+  document.getElementById('file-input').value = '';
+}
+
+function renderMonthsList(){
+  const ms = months();
+  updateBadge();
+  if(!ms.length){
+    document.getElementById('months-list-body').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-text">Nessun mese caricato</div></div>';
+    return;
+  }
+  document.getElementById('months-list-body').innerHTML =
+    `<table><thead><tr><th>Mese</th><th>Affiliati</th><th>Righe</th><th>GGR totale</th><th></th></tr></thead><tbody>
+    ${ms.map(m=>{
+      const r = db[m]||[];
+      const a = new Set(r.map(x=>x.aff)).size;
+      const g = r.reduce((s,x)=>s+(+x.ggr||0),0);
+      return `<tr><td>${ml(m)}</td><td>${a}</td><td>${r.length}</td><td>${fe(g)}</td>
+        <td><button class="del-btn" onclick="deleteMonth('${m}')">Elimina</button></td></tr>`;
+    }).join('')}
+    </tbody></table>`;
+}
+
+function deleteMonth(m){
+  if(!confirm('Eliminare i dati di '+ml(m)+'?')) return;
+  delete db[m];
+  saveDB();
+  deleteMonthFromFirestore(m);
+  renderMonthsList();
+}
+
 function saveDB(){
   try{localStorage.setItem('mbt_aff_db',JSON.stringify(db))}catch(e){}
   syncToFirestore().catch(e=>console.warn('Firestore sync error:',e));
@@ -1295,6 +1199,213 @@ function saveDB(){
 function appInit(){
   loadDB();updateBadge();initTheme();renderOverview();renderMonthsList();
 }
+
+/* ════════════════════════════════════════════════════
+   FIREBASE CONFIGURATION
+   Sostituisci con i valori dal tuo progetto Firebase
+   Console → Project Settings → Your apps → Config
+   ════════════════════════════════════════════════════ */
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyBX4sOy3B-x8u45xSINrFzpauZjSXQ0f6k",
+  authDomain:        "affiliates-tracker-8cd32.firebaseapp.com",
+  projectId:         "affiliates-tracker-8cd32",
+  storageBucket:     "affiliates-tracker-8cd32.firebasestorage.app",
+  messagingSenderId: "1050592939048",
+  appId:             "1:1050592939048:web:fee1063acb250f41dab91d"
+};
+
+/* ── Firebase instances ── */
+let fbApp  = null;
+let fbAuth = null;
+let fbDb   = null;
+let currentUser = null;
+
+function initFirebase(){
+  if(!window.firebase){ console.warn('Firebase SDK not loaded'); return false; }
+  if(!fbApp) fbApp = firebase.initializeApp(FIREBASE_CONFIG);
+  fbAuth = firebase.auth();
+  fbDb   = firebase.firestore();
+  return true;
+}
+
+/* ── SYNC STATUS UI ── */
+function setSyncStatus(state){
+  const dot = document.getElementById('sync-dot');
+  const txt = document.getElementById('sync-txt');
+  if(!dot||!txt) return;
+  dot.className = 'sync-dot' + (state==='syncing'?' syncing':state==='error'?' error':'');
+  txt.textContent = state==='syncing'?'Sincronizzazione...' : state==='error'?'Errore sync' : 'Sincronizzato';
+}
+
+/* ── TOAST ── */
+function showToast(msg, type='success'){
+  let t = document.getElementById('toast');
+  if(!t){
+    t = document.createElement('div');
+    t.id = 'toast';
+    document.body.appendChild(t);
+    t.style.cssText = 'position:fixed;bottom:24px;right:24px;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;font-family:Inter,sans-serif;z-index:9999;transition:opacity .3s;pointer-events:none';
+  }
+  t.textContent = msg;
+  t.style.background = type==='error'?'#7f1d1d':type==='warning'?'#78350f':'#14532d';
+  t.style.color      = type==='error'?'#fca5a5':type==='warning'?'#fcd34d':'#86efac';
+  t.style.border     = `1px solid ${type==='error'?'rgba(248,113,113,.3)':type==='warning'?'rgba(252,211,77,.3)':'rgba(134,239,172,.3)'}`;
+  t.style.opacity    = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>{ t.style.opacity='0'; }, 3000);
+}
+
+/* ── LOGIN ── */
+async function doLogin(){
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-password').value;
+  const btn   = document.getElementById('login-btn');
+  const errEl = document.getElementById('login-error');
+  if(!email||!pass){ errEl.textContent='Inserisci email e password'; return; }
+  btn.disabled = true;
+  btn.innerHTML = '<span class="login-spinner"></span>Accesso in corso...';
+  errEl.textContent = '';
+  try{
+    const cred = await fbAuth.signInWithEmailAndPassword(email, pass);
+    /* onLoginSuccess called by auth state listener */
+  }catch(e){
+    const msg = e.code==='auth/invalid-credential'||e.code==='auth/wrong-password'||e.code==='auth/user-not-found'
+      ? 'Credenziali non valide'
+      : e.code==='auth/too-many-requests'
+      ? 'Troppi tentativi. Riprova tra qualche minuto.'
+      : e.message;
+    errEl.textContent = msg;
+    btn.disabled = false;
+    btn.textContent = 'Accedi';
+  }
+}
+
+document.addEventListener('keydown', e=>{
+  if(e.key==='Enter' && document.getElementById('login-screen').style.display!=='none') doLogin();
+});
+
+function onLoginSuccess(user){
+  currentUser = user;
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  const up = document.getElementById('user-pill-email');
+  if(up) up.textContent = user.email;
+  appInit();
+}
+
+async function doLogout(){
+  await fbAuth.signOut();
+  currentUser = null;
+  db = {};
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-password').value = '';
+  document.getElementById('login-error').textContent = '';
+}
+
+/* ── FIRESTORE DATA LAYER ──
+   Collection: "uploads"
+   Document ID: "{userId}_{monthKey}"   e.g. "uid123_2026-01"
+   Fields: userId, monthKey, data (array), updatedAt
+── */
+
+async function syncToSupabase(){ /* alias kept for compatibility */
+  return syncToFirestore();
+}
+
+async function syncToFirestore(){
+  if(!fbDb||!currentUser){ return; }
+  setSyncStatus('syncing');
+  try{
+    const batch = fbDb.batch();
+    Object.entries(db).forEach(([monthKey, rows])=>{
+      const docId  = currentUser.uid + '_' + monthKey;
+      const docRef = fbDb.collection('uploads').doc(docId);
+      batch.set(docRef, {
+        userId:    currentUser.uid,
+        monthKey,
+        data:      rows,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+    await batch.commit();
+    setSyncStatus('ok');
+  }catch(e){
+    setSyncStatus('error');
+    console.error('Firestore sync error:', e);
+    showToast('Errore sincronizzazione cloud', 'error');
+  }
+}
+
+async function loadFromSupabase(){ /* alias kept for compatibility */
+  return loadFromFirestore();
+}
+
+async function loadFromFirestore(){
+  if(!fbDb||!currentUser){ return; }
+  setSyncStatus('syncing');
+  try{
+    const snap = await fbDb.collection('uploads')
+      .where('userId','==', currentUser.uid)
+      .orderBy('monthKey','asc')
+      .get();
+    if(!snap.empty){
+      snap.forEach(doc=>{
+        const {monthKey, data} = doc.data();
+        if(monthKey && data) db[normalizeKey(monthKey)] = data;
+      });
+      try{ localStorage.setItem('mbt_aff_db', JSON.stringify(db)); }catch(e){}
+      updateBadge();
+      renderOverview();
+      renderMonthsList();
+    }
+    setSyncStatus('ok');
+  }catch(e){
+    setSyncStatus('error');
+    console.error('Firestore load error:', e);
+  }
+}
+
+async function deleteMonthFromSupabase(monthKey){ /* alias kept */
+  return deleteMonthFromFirestore(monthKey);
+}
+
+async function deleteMonthFromFirestore(monthKey){
+  if(!fbDb||!currentUser) return;
+  try{
+    const docId = currentUser.uid + '_' + monthKey;
+    await fbDb.collection('uploads').doc(docId).delete();
+  }catch(e){ console.error('Firestore delete error:', e); }
+}
+
+/* ── AUTH STATE LISTENER & INIT ── */
+async function checkSession(){
+  const ok = initFirebase();
+  if(!ok || FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY'){
+    /* Firebase not configured: run offline with localStorage only */
+    console.warn('Firebase not configured — running in offline/local mode');
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    appInit();
+    return;
+  }
+  /* Listen for auth state: fires immediately with current session or null */
+  fbAuth.onAuthStateChanged(user=>{
+    if(user){
+      onLoginSuccess(user);
+    } else {
+      /* No session — show login */
+      document.getElementById('login-screen').style.display = 'flex';
+      document.getElementById('app').style.display = 'none';
+    }
+  });
+}
+
+/* Start */
+checkSession();
+
+/* Start */
+checkSession();
 </script>
 </body>
 </html>
