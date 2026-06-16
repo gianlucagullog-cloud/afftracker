@@ -344,7 +344,23 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
 
   <!-- OVERVIEW -->
   <div id="tab-overview" class="panel active">
-    <div id="pills-overview" class="month-pills"></div>
+
+    <!-- FILTRI OVERVIEW -->
+    <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase">Filtri overview</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <select class="tbl-select" id="ov-range-from" onchange="onOvRangeChange()"><option value="">Da...</option></select>
+          <span style="color:var(--text3);font-size:12px">→</span>
+          <select class="tbl-select" id="ov-range-to" onchange="onOvRangeChange()"><option value="">A...</option></select>
+          <select class="tbl-select" id="ov-cat-filter" onchange="renderOverview()"><option value="">Tutti i prodotti</option></select>
+          <button class="metric-toggle" onclick="ovSelectAll()" style="font-size:11px">Tutti i mesi</button>
+          <button class="metric-toggle" onclick="ovSelectNone()" style="font-size:11px">Nessuno</button>
+        </div>
+      </div>
+      <div id="pills-overview" class="month-pills" style="margin-bottom:0"></div>
+    </div>
+
     <div id="kpi-overview" class="kpi-grid"></div>
     <div class="charts-grid">
       <div class="chart-card">
@@ -381,7 +397,20 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
 
   <!-- CATEGORIE -->
   <div id="tab-categorie" class="panel">
-    <div id="pills-cat" class="month-pills"></div>
+    <!-- SELEZIONE MESI -->
+    <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase">Seleziona periodo</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <select class="tbl-select" id="cat-range-from" onchange="onCatRangeChange()"><option value="">Da...</option></select>
+          <span style="color:var(--text3);font-size:12px">→</span>
+          <select class="tbl-select" id="cat-range-to" onchange="onCatRangeChange()"><option value="">A...</option></select>
+          <button class="metric-toggle" onclick="catSelectAll()" style="font-size:11px">Tutti</button>
+          <button class="metric-toggle" onclick="catSelectNone()" style="font-size:11px">Nessuno</button>
+        </div>
+      </div>
+      <div id="pills-cat" class="month-pills" style="margin-bottom:0"></div>
+    </div>
     <div class="charts-grid">
       <div class="chart-card">
         <div class="chart-card-title">GGR per categoria</div>
@@ -501,6 +530,23 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
 let db={};
 let pendingData=null;
 let selOvMonth=null,selCatMonth=null;
+let selOvMonths=new Set(); /* multi-select for overview */
+
+function onOvRangeChange(){
+  const ms=months();
+  const from=document.getElementById('ov-range-from').value;
+  const to=document.getElementById('ov-range-to').value;
+  if(!from&&!to) return;
+  selOvMonths=new Set(ms.filter(m=>(!from||m>=from)&&(!to||m<=to)));
+  renderOverview();
+}
+function ovSelectAll(){selOvMonths=new Set(months());renderOverview();}
+function ovSelectNone(){selOvMonths=new Set();renderOverview();}
+function toggleOvMonth(m){
+  if(selOvMonths.has(m)) selOvMonths.delete(m);
+  else selOvMonths.add(m);
+  renderOverview();
+}
 let cTop5=null,cMix=null,cCatBar=null,cCatPayout=null,cTrendGgr=null,cTrendConti=null;
 
 const CAT_COLORS={
@@ -581,7 +627,22 @@ function renderPills(containerId,current,callback){
 }
 
 function setOvMonth(m){selOvMonth=m;renderOverview()}
-function setCatMonth(m){selCatMonth=m;renderCategorie()}
+function setCatMonth(m){
+  /* toggle month in multi-select set */
+  if(selCatMonths.has(m)) selCatMonths.delete(m);
+  else selCatMonths.add(m);
+  renderCategorie();
+}
+function onCatRangeChange(){
+  const ms=months();
+  const from=document.getElementById('cat-range-from').value;
+  const to=document.getElementById('cat-range-to').value;
+  if(!from&&!to){return;}
+  selCatMonths=new Set(ms.filter(m=>(!from||m>=from)&&(!to||m<=to)));
+  renderCategorie();
+}
+function catSelectAll(){selCatMonths=new Set(months());renderCategorie();}
+function catSelectNone(){selCatMonths=new Set();renderCategorie();}
 
 function renderOverview(){
   const ms=months();
@@ -627,10 +688,40 @@ function renderOverview(){
   if(cMix)cMix.destroy();
   cMix=new Chart(document.getElementById('chart-mix'),{type:'doughnut',data:{labels:catData.map(c=>c.cat),datasets:[{data:catData.map(c=>+c.ggr.toFixed(0)),backgroundColor:catData.map(c=>CAT_COLORS[c.cat]||'#64748b'),borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'var(--slate)',font:{size:11},padding:12,boxWidth:10,boxHeight:10}}},cutout:'58%'}});
 
-  document.getElementById('tbl-overview').innerHTML=`<table><thead><tr><th>#</th><th>Affiliato</th><th>Ragione sociale</th><th>Rete</th><th>GGR</th><th>Rake</th><th>Giocato</th><th>Payout %</th><th>Conti</th></tr></thead><tbody>${affData.map((a,i)=>{
+  /* apply sort */
+  (function(){
+    const s=tblSort.overview;
+    if(s.col) affData.sort((a,b)=>{
+      const fields={ggr:[a.ggr,b.ggr],rake:[a.rake,b.rake],giocato:[a.giocato,b.giocato],
+        conti:[a.conti,b.conti],payout:[a.giocato>0?a.vinto/a.giocato:0,b.giocato>0?b.vinto/b.giocato:0]};
+      if(s.col==='aff') return a.aff.localeCompare(b.aff)*s.dir;
+      const [va,vb]=fields[s.col]||[a.ggr,b.ggr];
+      return (vb-va)*s.dir;
+    });
+  })();
+  document.getElementById('tbl-overview').innerHTML=`<table><thead><tr>
+    <th style="width:40px">#</th>
+    <th class="sortable" onclick="sortBy('overview','aff')">Affiliato \${si('overview','aff')}</th>
+    <th>Ragione sociale</th><th>Rete</th>
+    <th class="sortable" onclick="sortBy('overview','ggr')">GGR \${si('overview','ggr')}</th>
+    <th class="sortable" onclick="sortBy('overview','rake')">Rake \${si('overview','rake')}</th>
+    <th class="sortable" onclick="sortBy('overview','giocato')">Giocato \${si('overview','giocato')}</th>
+    <th class="sortable" onclick="sortBy('overview','payout')">Payout % \${si('overview','payout')}</th>
+    <th class="sortable" onclick="sortBy('overview','conti')">Conti \${si('overview','conti')}</th>
+  </tr></thead><tbody>\${affData.map((a,i)=>{
     const py=a.giocato>0?(a.vinto/a.giocato*100):0;
     const bar=Math.round(a.ggr/maxG*60);
-    return`<tr><td><span class="rank ${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':''}">${i+1}</span></td><td><div class="aff-code">${a.aff}</div></td><td><div style="font-size:12px;color:var(--slate2);max-width:180px;overflow:hidden;text-overflow:ellipsis">${a.padre||'—'}</div></td><td><span class="net-tag">${a.network||'—'}</span></td><td>${fe(a.ggr)}<span class="ggr-bar" style="width:${bar}px"></span></td><td>${fe(a.rake)}</td><td>${fe(a.giocato)}</td><td><span class="${py<85?'badge-pos':py>100?'badge-neg':'badge-cat'}">${fp(py)}</span></td><td>${fn(a.conti)}</td></tr>`;
+    return\`<tr>
+      <td><span class="rank \${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':''}">\${i+1}</span></td>
+      <td><div class="aff-code">\${a.aff}</div></td>
+      <td><div style="font-size:12px;color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis">\${a.padre||'—'}</div></td>
+      <td><span class="net-tag">\${a.network||'—'}</span></td>
+      <td>\${fe(a.ggr)}<span class="ggr-bar" style="width:\${bar}px"></span></td>
+      <td>\${fe(a.rake)}</td><td>\${fe(a.giocato)}</td>
+      <td><span class="\${py<85?'badge-pos':py>100?'badge-neg':'badge-cat'}">\${fp(py)}</span></td>
+      <td>\${fn(a.conti)}</td>
+    </tr>\`;
+  }).join('')}</tbody></table>\`;
   }).join('')}</tbody></table>`;
 }
 
@@ -648,39 +739,140 @@ function renderAffiliati(){
   const q=(document.getElementById('aff-search').value||'').toLowerCase();
   const filtered=allRows.filter(r=>(!selN||r.network===selN)&&(!q||r.aff.toLowerCase().includes(q)||(r.padre||'').toLowerCase().includes(q)));
   const data=byAff(filtered);
-  document.getElementById('tbl-affiliati').innerHTML=`<table><thead><tr><th>#</th><th>Cod. affiliato</th><th>Ragione sociale</th><th>Rete</th><th>GGR</th><th>Rake</th><th>Giocato</th><th>Vinto</th><th>Payout %</th><th>Ticket</th></tr></thead><tbody>${data.map((a,i)=>{const py=a.giocato>0?(a.vinto/a.giocato*100):0;return`<tr><td><span class="rank">${i+1}</span></td><td><div class="aff-code">${a.aff}</div></td><td><div style="font-size:12px;color:var(--slate2);max-width:160px;overflow:hidden;text-overflow:ellipsis">${a.padre||'—'}</div></td><td><span class="net-tag">${a.network||'—'}</span></td><td>${fe(a.ggr)}</td><td>${fe(a.rake)}</td><td>${fe(a.giocato)}</td><td>${fe(a.vinto)}</td><td><span class="${py<85?'badge-pos':py>100?'badge-neg':'badge-cat'}">${fp(py)}</span></td><td>${fn(a.tickets)}</td></tr>`;}).join('')}</tbody></table>`;
+  /* apply sort */
+  (function(){
+    const s=tblSort.affiliati;
+    if(s.col) data.sort((a,b)=>{
+      const fields={ggr:[a.ggr,b.ggr],rake:[a.rake,b.rake],giocato:[a.giocato,b.giocato],
+        vinto:[a.vinto,b.vinto],tickets:[a.tickets,b.tickets],
+        payout:[a.giocato>0?a.vinto/a.giocato:0,b.giocato>0?b.vinto/b.giocato:0]};
+      if(s.col==='aff') return a.aff.localeCompare(b.aff)*s.dir;
+      const [va,vb]=fields[s.col]||[a.ggr,b.ggr];
+      return (vb-va)*s.dir;
+    });
+  })();
+  document.getElementById('tbl-affiliati').innerHTML=`<table><thead><tr>
+    <th style="width:40px">#</th>
+    <th class="sortable" onclick="sortBy('affiliati','aff')">Cod. affiliato \${si('affiliati','aff')}</th>
+    <th>Ragione sociale</th><th>Rete</th>
+    <th class="sortable" onclick="sortBy('affiliati','ggr')">GGR \${si('affiliati','ggr')}</th>
+    <th class="sortable" onclick="sortBy('affiliati','rake')">Rake \${si('affiliati','rake')}</th>
+    <th class="sortable" onclick="sortBy('affiliati','giocato')">Giocato \${si('affiliati','giocato')}</th>
+    <th class="sortable" onclick="sortBy('affiliati','vinto')">Vinto \${si('affiliati','vinto')}</th>
+    <th class="sortable" onclick="sortBy('affiliati','payout')">Payout % \${si('affiliati','payout')}</th>
+    <th class="sortable" onclick="sortBy('affiliati','tickets')">Ticket \${si('affiliati','tickets')}</th>
+  </tr></thead><tbody>\${data.map((a,i)=>{const py=a.giocato>0?(a.vinto/a.giocato*100):0;return\`<tr>
+    <td><span class="rank">\${i+1}</span></td>
+    <td><div class="aff-code">\${a.aff}</div></td>
+    <td><div style="font-size:12px;color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis">\${a.padre||'—'}</div></td>
+    <td><span class="net-tag">\${a.network||'—'}</span></td>
+    <td>\${fe(a.ggr)}</td><td>\${fe(a.rake)}</td><td>\${fe(a.giocato)}</td><td>\${fe(a.vinto)}</td>
+    <td><span class="\${py<85?'badge-pos':py>100?'badge-neg':'badge-cat'}">\${fp(py)}</span></td>
+    <td>\${fn(a.tickets)}</td>
+  </tr>\`;}).join('')}</tbody></table>\`;
 }
 
 function renderCategorie(){
   const ms=months();
-  if(!ms.length){document.getElementById('tbl-cat').innerHTML=`<div class="empty-state"><div class="empty-icon">🎰</div><div class="empty-text">Nessun dato disponibile</div></div>`;return}
-  if(!selCatMonth||!db[selCatMonth])selCatMonth=ms[ms.length-1];
-  renderPills('pills-cat',selCatMonth,'setCatMonth');
-  const rows=db[selCatMonth]||[];
-  const data=byCat(rows);
-  if(cCatBar)cCatBar.destroy();
-  cCatBar=new Chart(document.getElementById('chart-cat-bar'),{type:'bar',data:{labels:data.map(c=>c.cat),datasets:[{label:'GGR',data:data.map(c=>+c.ggr.toFixed(0)),backgroundColor:data.map(c=>CAT_COLORS[c.cat]||'#64748b'),borderRadius:5}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'var(--slate2)',callback:v=>'€'+fn(v)},grid:{color:'rgba(128,128,128,0.1)'}},y:{ticks:{color:'var(--slate)',font:{size:11}},grid:{display:false}}}}});
-  const payouts=data.map(c=>c.giocato>0?(c.vinto/c.giocato*100):0);
-  if(cCatPayout)cCatPayout.destroy();
-  cCatPayout=new Chart(document.getElementById('chart-cat-payout'),{type:'bar',data:{labels:data.map(c=>c.cat),datasets:[{label:'Payout %',data:payouts.map(p=>+p.toFixed(1)),backgroundColor:payouts.map(p=>p>100?'#e8001c':p>85?'#fb923c':'#4ade80'),borderRadius:5}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'var(--slate2)',callback:v=>v+'%'},grid:{color:'rgba(128,128,128,0.1)'}},y:{ticks:{color:'var(--slate)',font:{size:11}},grid:{display:false}}}}});
-  document.getElementById('tbl-cat').innerHTML=`<table><thead><tr><th>Categoria</th><th>GGR</th><th>Rake</th><th>Giocato</th><th>Vinto</th><th>Payout %</th><th>Ticket</th></tr></thead><tbody>${data.map(c=>{const py=c.giocato>0?(c.vinto/c.giocato*100):0;return`<tr><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${CAT_COLORS[c.cat]||'#64748b'};margin-right:8px;vertical-align:middle"></span>${c.cat}</td><td>${fe(c.ggr)}</td><td>${fe(c.rake)}</td><td>${fe(c.giocato)}</td><td>${fe(c.vinto)}</td><td><span class="${py<85?'badge-pos':py>100?'badge-neg':'badge-cat'}">${fp(py)}</span></td><td>${fn(c.tickets)}</td></tr>`;}).join('')}</tbody></table>`;
-}
+  if(!ms.length){
+    document.getElementById('tbl-cat').innerHTML='<div class="empty-state"><div class="empty-icon">🎰</div><div class="empty-text">Nessun dato disponibile</div></div>';
+    return;
+  }
+  /* init selCatMonths to last month if empty */
+  if(selCatMonths.size===0) selCatMonths=new Set([ms[ms.length-1]]);
 
-function populateTrendFilters(){
-  const ms=months();
-  ['g-from','g-to'].forEach(id=>{
+  /* populate range dropdowns */
+  ['cat-range-from','cat-range-to'].forEach(id=>{
     const sel=document.getElementById(id);
+    if(!sel) return;
     const cur=sel.value;
-    while(sel.options.length>1)sel.remove(1);
+    while(sel.options.length>1) sel.remove(1);
     ms.forEach(m=>sel.add(new Option(ml(m),m)));
-    if(cur&&ms.includes(cur))sel.value=cur;
+    if(cur&&ms.includes(cur)) sel.value=cur;
   });
-  const cats=[...new Set(ms.flatMap(m=>(db[m]||[]).map(r=>r.cat)))].sort();
-  const cSel=document.getElementById('g-cat');
-  const curC=cSel.value;
-  while(cSel.options.length>1)cSel.remove(1);
-  cats.forEach(ct=>cSel.add(new Option(ct,ct)));
-  if(curC&&cats.includes(curC))cSel.value=curC;
+
+  /* render pills with multi-select state */
+  document.getElementById('pills-cat').innerHTML=ms.map(m=>
+    `<button class="mpill${selCatMonths.has(m)?' active':''}" onclick="setCatMonth('${m}')">${ml(m)}</button>`
+  ).join('');
+
+  /* aggregate rows across selected months */
+  const selMs=[...selCatMonths].sort();
+  const rows=selMs.flatMap(m=>db[m]||[]);
+  if(!rows.length){
+    document.getElementById('tbl-cat').innerHTML='<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-text">Nessun dato per i mesi selezionati</div></div>';
+    return;
+  }
+
+  const data=byCat(rows);
+  const periodLabel=selMs.length===1?ml(selMs[0]):`${ml(selMs[0])} → ${ml(selMs[selMs.length-1])} (${selMs.length} mesi)`;
+
+  if(cCatBar) cCatBar.destroy();
+  cCatBar=new Chart(document.getElementById('chart-cat-bar'),{
+    type:'bar',
+    data:{labels:data.map(c=>c.cat),datasets:[{
+      label:'GGR',data:data.map(c=>+c.ggr.toFixed(0)),
+      backgroundColor:data.map(c=>CAT_COLORS[c.cat]||'#64748b'),borderRadius:5
+    }]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},title:{display:true,text:'GGR per categoria — '+periodLabel,color:'var(--text2)',font:{size:11}}},
+      scales:{
+        x:{ticks:{color:'#94a3b8',callback:v=>'€'+fn(v)},grid:{color:'rgba(128,128,128,0.1)'}},
+        y:{ticks:{color:'#94a3b8',font:{size:11}},grid:{display:false}}
+      }
+    }
+  });
+
+  const payouts=data.map(c=>c.giocato>0?(c.vinto/c.giocato*100):0);
+  if(cCatPayout) cCatPayout.destroy();
+  cCatPayout=new Chart(document.getElementById('chart-cat-payout'),{
+    type:'bar',
+    data:{labels:data.map(c=>c.cat),datasets:[{
+      label:'Payout %',data:payouts.map(p=>+p.toFixed(1)),
+      backgroundColor:payouts.map(p=>p>100?'#e8001c':p>85?'#fb923c':'#4ade80'),borderRadius:5
+    }]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#94a3b8',callback:v=>v+'%'},grid:{color:'rgba(128,128,128,0.1)'}},
+        y:{ticks:{color:'#94a3b8',font:{size:11}},grid:{display:false}}
+      }
+    }
+  });
+
+  /* apply sort */
+  (function(){
+    const s=tblSort.cat;
+    if(s.col) data.sort((a,b)=>{
+      const fields={ggr:[a.ggr,b.ggr],rake:[a.rake,b.rake],giocato:[a.giocato,b.giocato],
+        vinto:[a.vinto,b.vinto],tickets:[a.tickets,b.tickets],
+        payout:[a.giocato>0?a.vinto/a.giocato:0,b.giocato>0?b.vinto/b.giocato:0]};
+      if(s.col==='cat') return a.cat.localeCompare(b.cat)*s.dir;
+      const [va,vb]=fields[s.col]||[a.ggr,b.ggr];
+      return (vb-va)*s.dir;
+    });
+  })();
+  document.getElementById('tbl-cat').innerHTML=`<table><thead><tr>
+    <th class="sortable" onclick="sortBy('cat','cat')">Categoria \${si('cat','cat')}</th>
+    <th class="sortable" onclick="sortBy('cat','ggr')">GGR \${si('cat','ggr')}</th>
+    <th class="sortable" onclick="sortBy('cat','rake')">Rake \${si('cat','rake')}</th>
+    <th class="sortable" onclick="sortBy('cat','giocato')">Giocato \${si('cat','giocato')}</th>
+    <th class="sortable" onclick="sortBy('cat','vinto')">Vinto \${si('cat','vinto')}</th>
+    <th class="sortable" onclick="sortBy('cat','payout')">Payout % \${si('cat','payout')}</th>
+    <th class="sortable" onclick="sortBy('cat','tickets')">Ticket \${si('cat','tickets')}</th>
+  </tr></thead><tbody>
+  \${data.map(cat=>{
+    const py=cat.giocato>0?(cat.vinto/cat.giocato*100):0;
+    return\`<tr>
+      <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:\${CAT_COLORS[cat.cat]||'#64748b'};margin-right:8px;vertical-align:middle"></span>\${cat.cat}</td>
+      <td>\${fe(cat.ggr)}</td><td>\${fe(cat.rake)}</td><td>\${fe(cat.giocato)}</td><td>\${fe(cat.vinto)}</td>
+      <td><span class="\${py<85?'badge-pos':py>100?'badge-neg':'badge-cat'}">\${fp(py)}</span></td>
+      <td>\${fn(cat.tickets)}</td>
+    </tr>\`;
+  }).join('')}
+  </tbody></table>\`;
+  }).join('')}
+  </tbody></table>`;
 }
 
 function renderTrend(){populateTrendFilters();renderGrafico();}
@@ -689,6 +881,24 @@ function renderTrend(){populateTrendFilters();renderGrafico();}
 let gMetricView='rake'; /* 'rake' | 'turnover' | 'both' */
 let gSortCol=null;
 let gSortDir=1;
+/* per-table sort state */
+const tblSort={
+  overview: {col:null, dir:1},
+  affiliati: {col:null, dir:1},
+  cat:       {col:null, dir:1}
+};
+function sortBy(tbl, col){
+  if(tblSort[tbl].col===col) tblSort[tbl].dir*=-1;
+  else { tblSort[tbl].col=col; tblSort[tbl].dir=1; }
+  if(tbl==='overview')   renderOverview();
+  if(tbl==='affiliati')  renderAffiliati();
+  if(tbl==='cat')        renderCategorie();
+}
+function si(tbl,col){/* sort icon */
+  const s=tblSort[tbl];
+  if(s.col!==col) return '<span class="sort-icon">⇅</span>';
+  return s.dir===1?'<span class="sort-icon active">▼</span>':'<span class="sort-icon active">▲</span>';
+}
 let gExpandedMonths=new Set(); /* which middle months are currently shown */
 
 function toggleMonth(m){
