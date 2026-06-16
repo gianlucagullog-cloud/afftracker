@@ -701,6 +701,600 @@ async function checkSession(){
 
 /* Start */
 checkSession();
+
+/* ════ APP FUNCTIONS ════ */
+let db={};
+let pendingData=null;
+let selOvMonth=null,selCatMonth=null;
+let cTop5=null,cMix=null,cCatBar=null,cCatPayout=null,cTrendGgr=null,cTrendConti=null;
+
+const CAT_COLORS={
+  'casino':'#7dd3fc','scommesse':'#4ade80','casino live':'#fb923c',
+  'poker':'#c084fc','virtuali':'#f472b6','bingo':'#34d399',
+  'lotterie':'#fbbf24','ippica':'#94a3b8','carte':'#e8001c',
+  'concorsi a pronostico':'#60a5fa'
+};
+
+function ml(m){
+  if(!m)return'';
+  // Handle YYYY-MM format (correct)
+  if(/^\d{4}-\d{2}$/.test(m)){
+    const[y,mo]=m.split('-');
+    const ms=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+    return ms[parseInt(mo)-1]+' '+y;
+  }
+  // Already a label (old saved data): strip leading "undefined " if present
+  return m.replace(/^undefined\s*/,'');
+}
+// Sort months correctly even when keys are mixed format
+function sortMonths(ms){
+  return ms.slice().sort((a,b)=>{
+    const toDate=k=>{
+      if(/^\d{4}-\d{2}$/.test(k))return new Date(k+'-01');
+      const it=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+      const clean=k.replace(/^undefined\s*/,'');
+      const parts=clean.split(' ');
+      const mi=it.indexOf(parts[0]);
+      return mi>=0?new Date(parts[1]+'-'+(String(mi+1).padStart(2,'0'))+'-01'):new Date(0);
+    };
+    return toDate(a)-toDate(b);
+  });
+}
+function fe(n){return'€'+(+n||0).toLocaleString('it-IT',{minimumFractionDigits:0,maximumFractionDigits:0})}
+function fn(n){return(+n||0).toLocaleString('it-IT',{minimumFractionDigits:0,maximumFractionDigits:0})}
+function fp(n){return(+n||0).toFixed(1)+'%'}
+function months(){return sortMonths(Object.keys(db))}
+
+function byAff(rows){
+  const m={};
+  rows.forEach(r=>{
+    if(!m[r.aff])m[r.aff]={aff:r.aff,padre:r.padre,network:r.network,ggr:0,rake:0,buyIn:0,giocato:0,vinto:0,conti:0,tickets:0};
+    const a=m[r.aff];
+    a.ggr+=+r.ggr||0;a.rake+=+r.rake||0;a.buyIn+=+r.buyIn||0;
+    a.giocato+=+r.giocato||0;a.vinto+=+r.vinto||0;
+    a.conti=Math.max(a.conti,+r.conti||0);a.tickets+=+r.tickets||0;
+  });
+  return Object.values(m).sort((a,b)=>b.ggr-a.ggr);
+}
+function byCat(rows){
+  const m={};
+  rows.forEach(r=>{
+    if(!m[r.cat])m[r.cat]={cat:r.cat,ggr:0,rake:0,giocato:0,vinto:0,conti:0,tickets:0};
+    const a=m[r.cat];
+    a.ggr+=+r.ggr||0;a.rake+=+r.rake||0;a.giocato+=+r.giocato||0;a.vinto+=+r.vinto||0;a.conti+=+r.conti||0;a.tickets+=+r.tickets||0;
+  });
+  return Object.values(m).sort((a,b)=>b.ggr-a.ggr);
+}
+
+function switchTab(name,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+  if(name==='overview')renderOverview();
+  if(name==='affiliati')renderAffiliati();
+  if(name==='categorie')renderCategorie();
+  if(name==='trend')renderTrend();
+  if(name==='upload')renderMonthsList();
+}
+
+function renderPills(containerId,current,callback){
+  const ms=months();
+  const el=document.getElementById(containerId);
+  if(!ms.length){el.innerHTML='';return}
+  el.innerHTML=ms.map(m=>`<button class="mpill${current===m?' active':''}" onclick="${callback}('${m}')">${ml(m)}</button>`).join('');
+}
+
+function setOvMonth(m){selOvMonth=m;renderOverview()}
+function setCatMonth(m){selCatMonth=m;renderCategorie()}
+
+function renderOverview(){
+  const ms=months();
+  if(!ms.length){
+    document.getElementById('kpi-overview').innerHTML='';
+    document.getElementById('tbl-overview').innerHTML=`<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-text">Nessun dato caricato.<br>Vai su <strong>Carica dati</strong> per iniziare.</div></div>`;
+    return;
+  }
+  if(!selOvMonth||!db[selOvMonth])selOvMonth=ms[ms.length-1];
+  renderPills('pills-overview',selOvMonth,'setOvMonth');
+
+  const rows=db[selOvMonth]||[];
+  const totalGGR=rows.reduce((s,r)=>s+(+r.ggr||0),0);
+  const totalRake=rows.reduce((s,r)=>s+(+r.rake||0),0);
+  const totalGiocato=rows.reduce((s,r)=>s+(+r.giocato||0),0);
+  const totalVinto=rows.reduce((s,r)=>s+(+r.vinto||0),0);
+  const payout=totalGiocato>0?(totalVinto/totalGiocato*100):0;
+  const totalTickets=rows.reduce((s,r)=>s+(+r.tickets||0),0);
+  const nAffs=new Set(rows.map(r=>r.aff)).size;
+
+  let prevGGR=null;
+  const pi=ms.indexOf(selOvMonth);
+  if(pi>0)prevGGR=(db[ms[pi-1]]||[]).reduce((s,r)=>s+(+r.ggr||0),0);
+  const delta=prevGGR!=null?((totalGGR-prevGGR)/Math.abs(prevGGR)*100):null;
+
+  document.getElementById('kpi-overview').innerHTML=`
+    <div class="kpi-card"><div class="kpi-label">GGR totale</div><div class="kpi-value">${fe(totalGGR)}</div>${delta!=null?`<div class="kpi-delta ${delta>=0?'delta-up':'delta-down'}">${delta>=0?'▲':'▼'} ${Math.abs(delta).toFixed(1)}% vs mese prec.</div>`:''}</div>
+    <div class="kpi-card"><div class="kpi-label">Rake totale</div><div class="kpi-value">${fe(totalRake)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Giocato</div><div class="kpi-value">${fe(totalGiocato)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Payout medio</div><div class="kpi-value">${fp(payout)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Affiliati attivi</div><div class="kpi-value">${nAffs}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Ticket totali</div><div class="kpi-value">${fn(totalTickets)}</div></div>
+  `;
+
+  const affData=byAff(rows);
+  const top5=affData.slice(0,5);
+  const maxG=Math.max(...affData.map(a=>a.ggr),1);
+
+  if(cTop5)cTop5.destroy();
+  cTop5=new Chart(document.getElementById('chart-top5'),{type:'bar',data:{labels:top5.map(a=>a.aff),datasets:[{label:'GGR',data:top5.map(a=>+a.ggr.toFixed(0)),backgroundColor:'#e8001c',borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{color:'var(--slate2)',callback:v=>'€'+fn(v)},grid:{color:'rgba(128,128,128,0.1)'}},x:{ticks:{color:'var(--slate)',font:{size:11}},grid:{display:false}}}}});
+
+  const catData=byCat(rows);
+  if(cMix)cMix.destroy();
+  cMix=new Chart(document.getElementById('chart-mix'),{type:'doughnut',data:{labels:catData.map(c=>c.cat),datasets:[{data:catData.map(c=>+c.ggr.toFixed(0)),backgroundColor:catData.map(c=>CAT_COLORS[c.cat]||'#64748b'),borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'var(--slate)',font:{size:11},padding:12,boxWidth:10,boxHeight:10}}},cutout:'58%'}});
+
+  document.getElementById('tbl-overview').innerHTML=`<table><thead><tr><th>#</th><th>Affiliato</th><th>Ragione sociale</th><th>Rete</th><th>GGR</th><th>Rake</th><th>Giocato</th><th>Payout %</th><th>Conti</th></tr></thead><tbody>${affData.map((a,i)=>{
+    const py=a.giocato>0?(a.vinto/a.giocato*100):0;
+    const bar=Math.round(a.ggr/maxG*60);
+    return`<tr><td><span class="rank ${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':''}">${i+1}</span></td><td><div class="aff-code">${a.aff}</div></td><td><div style="font-size:12px;color:var(--slate2);max-width:180px;overflow:hidden;text-overflow:ellipsis">${a.padre||'—'}</div></td><td><span class="net-tag">${a.network||'—'}</span></td><td>${fe(a.ggr)}<span class="ggr-bar" style="width:${bar}px"></span></td><td>${fe(a.rake)}</td><td>${fe(a.giocato)}</td><td><span class="${py<85?'badge-pos':py>100?'badge-neg':'badge-cat'}">${fp(py)}</span></td><td>${fn(a.conti)}</td></tr>`;
+  }).join('')}</tbody></table>`;
+}
+
+function renderAffiliati(){
+  const ms=months();
+  if(!ms.length){document.getElementById('tbl-affiliati').innerHTML=`<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">Nessun dato disponibile</div></div>`;return}
+  const mSel=document.getElementById('aff-month-sel');
+  if(mSel.options.length<=1)ms.forEach(m=>{const o=new Option(ml(m),m);mSel.add(o)});
+  const selM=mSel.value;
+  const allRows=selM?(db[selM]||[]):ms.flatMap(m=>db[m]||[]);
+  const nets=[...new Set(allRows.map(r=>r.network).filter(Boolean))].sort();
+  const nSel=document.getElementById('aff-net-sel');
+  if(nSel.options.length<=1)nets.forEach(n=>{const o=new Option(n,n);nSel.add(o)});
+  const selN=nSel.value;
+  const q=(document.getElementById('aff-search').value||'').toLowerCase();
+  const filtered=allRows.filter(r=>(!selN||r.network===selN)&&(!q||r.aff.toLowerCase().includes(q)||(r.padre||'').toLowerCase().includes(q)));
+  const data=byAff(filtered);
+  document.getElementById('tbl-affiliati').innerHTML=`<table><thead><tr><th>#</th><th>Cod. affiliato</th><th>Ragione sociale</th><th>Rete</th><th>GGR</th><th>Rake</th><th>Giocato</th><th>Vinto</th><th>Payout %</th><th>Ticket</th></tr></thead><tbody>${data.map((a,i)=>{const py=a.giocato>0?(a.vinto/a.giocato*100):0;return`<tr><td><span class="rank">${i+1}</span></td><td><div class="aff-code">${a.aff}</div></td><td><div style="font-size:12px;color:var(--slate2);max-width:160px;overflow:hidden;text-overflow:ellipsis">${a.padre||'—'}</div></td><td><span class="net-tag">${a.network||'—'}</span></td><td>${fe(a.ggr)}</td><td>${fe(a.rake)}</td><td>${fe(a.giocato)}</td><td>${fe(a.vinto)}</td><td><span class="${py<85?'badge-pos':py>100?'badge-neg':'badge-cat'}">${fp(py)}</span></td><td>${fn(a.tickets)}</td></tr>`;}).join('')}</tbody></table>`;
+}
+
+function renderCategorie(){
+  const ms=months();
+  if(!ms.length){document.getElementById('tbl-cat').innerHTML=`<div class="empty-state"><div class="empty-icon">🎰</div><div class="empty-text">Nessun dato disponibile</div></div>`;return}
+  if(!selCatMonth||!db[selCatMonth])selCatMonth=ms[ms.length-1];
+  renderPills('pills-cat',selCatMonth,'setCatMonth');
+  const rows=db[selCatMonth]||[];
+  const data=byCat(rows);
+  if(cCatBar)cCatBar.destroy();
+  cCatBar=new Chart(document.getElementById('chart-cat-bar'),{type:'bar',data:{labels:data.map(c=>c.cat),datasets:[{label:'GGR',data:data.map(c=>+c.ggr.toFixed(0)),backgroundColor:data.map(c=>CAT_COLORS[c.cat]||'#64748b'),borderRadius:5}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'var(--slate2)',callback:v=>'€'+fn(v)},grid:{color:'rgba(128,128,128,0.1)'}},y:{ticks:{color:'var(--slate)',font:{size:11}},grid:{display:false}}}}});
+  const payouts=data.map(c=>c.giocato>0?(c.vinto/c.giocato*100):0);
+  if(cCatPayout)cCatPayout.destroy();
+  cCatPayout=new Chart(document.getElementById('chart-cat-payout'),{type:'bar',data:{labels:data.map(c=>c.cat),datasets:[{label:'Payout %',data:payouts.map(p=>+p.toFixed(1)),backgroundColor:payouts.map(p=>p>100?'#e8001c':p>85?'#fb923c':'#4ade80'),borderRadius:5}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'var(--slate2)',callback:v=>v+'%'},grid:{color:'rgba(128,128,128,0.1)'}},y:{ticks:{color:'var(--slate)',font:{size:11}},grid:{display:false}}}}});
+  document.getElementById('tbl-cat').innerHTML=`<table><thead><tr><th>Categoria</th><th>GGR</th><th>Rake</th><th>Giocato</th><th>Vinto</th><th>Payout %</th><th>Ticket</th></tr></thead><tbody>${data.map(c=>{const py=c.giocato>0?(c.vinto/c.giocato*100):0;return`<tr><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${CAT_COLORS[c.cat]||'#64748b'};margin-right:8px;vertical-align:middle"></span>${c.cat}</td><td>${fe(c.ggr)}</td><td>${fe(c.rake)}</td><td>${fe(c.giocato)}</td><td>${fe(c.vinto)}</td><td><span class="${py<85?'badge-pos':py>100?'badge-neg':'badge-cat'}">${fp(py)}</span></td><td>${fn(c.tickets)}</td></tr>`;}).join('')}</tbody></table>`;
+}
+
+function populateTrendFilters(){
+  const ms=months();
+  ['g-from','g-to'].forEach(id=>{
+    const sel=document.getElementById(id);
+    const cur=sel.value;
+    while(sel.options.length>1)sel.remove(1);
+    ms.forEach(m=>sel.add(new Option(ml(m),m)));
+    if(cur&&ms.includes(cur))sel.value=cur;
+  });
+  const cats=[...new Set(ms.flatMap(m=>(db[m]||[]).map(r=>r.cat)))].sort();
+  const cSel=document.getElementById('g-cat');
+  const curC=cSel.value;
+  while(cSel.options.length>1)cSel.remove(1);
+  cats.forEach(ct=>cSel.add(new Option(ct,ct)));
+  if(curC&&cats.includes(curC))cSel.value=curC;
+}
+
+function renderTrend(){populateTrendFilters();renderGrafico();}
+
+/* ── metric view state ── */
+let gMetricView='rake'; /* 'rake' | 'turnover' | 'both' */
+let gSortCol=null;
+let gSortDir=1;
+let gExpandedMonths=new Set(); /* which middle months are currently shown */
+
+function toggleMonth(m){
+  if(gExpandedMonths.has(m))gExpandedMonths.delete(m);
+  else gExpandedMonths.add(m);
+  renderGrafico();
+}
+function expandMonths(arr){
+  arr.forEach(m=>gExpandedMonths.add(m));
+  renderGrafico();
+}
+function toggleAllMonths(){
+  const ms=months();
+  const fromM=document.getElementById('g-from').value||ms[0];
+  const toM=document.getElementById('g-to').value||ms[ms.length-1];
+  const filtMs=ms.filter(m=>m>=fromM&&m<=toM);
+  const middleMs=filtMs.slice(1,filtMs.length-1);
+  const allExp=middleMs.every(m=>gExpandedMonths.has(m));
+  if(allExp)middleMs.forEach(m=>gExpandedMonths.delete(m));
+  else middleMs.forEach(m=>gExpandedMonths.add(m));
+  renderGrafico();
+}
+
+function setMetricView(v){
+  gMetricView=v;
+  document.querySelectorAll('.metric-toggle').forEach(b=>b.classList.remove('active'));
+  const idMap={rake:'g-show-rake',turnover:'g-show-turnover',both:'g-show-both'};
+  const el=document.getElementById(idMap[v]);
+  if(el)el.classList.add('active');
+  renderGrafico();
+}
+
+function pivotSort(col){
+  if(gSortCol===col){gSortDir*=-1;}else{gSortCol=col;gSortDir=1;}
+  renderGrafico();
+}
+
+function renderGrafico(){
+  const ms=months();
+  const pEl=document.getElementById('g-pivot');
+  if(!ms.length){
+    pEl.innerHTML='<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-text">Carica almeno un mese di dati per vedere la tabella</div></div>';
+    return;
+  }
+  populateTrendFilters();
+
+  const fromM   = document.getElementById('g-from').value||ms[0];
+  const toM     = document.getElementById('g-to').value||ms[ms.length-1];
+  const selCat  = document.getElementById('g-cat').value;
+  const q       = (document.getElementById('g-search').value||'').toLowerCase();
+  const topN    = parseInt(document.getElementById('g-topn').value)||0;
+  const minFirst= parseFloat(document.getElementById('g-min-first').value)||0;
+  const minLast = parseFloat(document.getElementById('g-min-last').value)||0;
+
+  const filtMs = ms.filter(m=>m>=fromM&&m<=toM);
+  if(!filtMs.length){
+    pEl.innerHTML='<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-text">Nessun mese nel periodo selezionato</div></div>';
+    return;
+  }
+
+  /* ── which months are "expanded" (visible) ── */
+  /* By default only first and last are shown; middle months toggled via gExpandedMonths */
+  const firstM = filtMs[0];
+  const lastM  = filtMs[filtMs.length-1];
+  const middleMs = filtMs.slice(1, filtMs.length-1);
+  /* visibleMs = always first+last, plus any expanded middle months */
+  const visibleMs = filtMs.filter(m=>
+    m===firstM || m===lastM || gExpandedMonths.has(m)
+  );
+
+  /* ── build per-affiliate per-month data ── */
+  const affData={};
+  const affMeta={};
+  filtMs.forEach(m=>{
+    (db[m]||[]).forEach(r=>{
+      if(selCat&&r.cat!==selCat)return;
+      if(!affData[r.aff]){affData[r.aff]={};affMeta[r.aff]={padre:r.padre||'—'};}
+      if(!affData[r.aff][m])affData[r.aff][m]={rake:0,turnover:0};
+      affData[r.aff][m].rake    +=(+r.rake||0);
+      affData[r.aff][m].turnover+=(+r.giocato||0);
+    });
+  });
+
+  /* ── filters ── */
+  let affList=Object.keys(affData).filter(aff=>{
+    if(q&&!aff.toLowerCase().includes(q)&&!(affMeta[aff].padre||'').toLowerCase().includes(q))return false;
+    if(minFirst>0&&(affData[aff][firstM]?.rake||0)<minFirst)return false;
+    if(minLast>0 &&(affData[aff][lastM]?.rake||0)<minLast)return false;
+    return true;
+  });
+
+  /* ── helpers ── */
+  const totRake=aff=>filtMs.reduce((s,m)=>s+(affData[aff][m]?.rake||0),0);
+  const totTurn=aff=>filtMs.reduce((s,m)=>s+(affData[aff][m]?.turnover||0),0);
+  const firstVal=(aff,field)=>affData[aff][firstM]?.[field]||0;
+  const lastVal =(aff,field)=>affData[aff][lastM]?.[field]||0;
+  const variance=(aff,field)=>{
+    const f=firstVal(aff,field), l=lastVal(aff,field);
+    if(f===0&&l===0)return null;
+    if(f===0)return null;
+    /* When base is negative, a standard % flips sign — correct it:
+       if base<0 and final>base (improvement), result should be positive */
+    const raw=((l-f)/Math.abs(f)*100);
+    /* if base negative, flip sign so "less negative / more positive = growth" */
+    return f<0 ? -raw : raw;
+  };
+
+  /* ── sort ── */
+  affList.sort((a,b)=>{
+    let va,vb;
+    if(!gSortCol||gSortCol==='total_rake'){va=totRake(a);vb=totRake(b);}
+    else if(gSortCol==='total_turn'){va=totTurn(a);vb=totTurn(b);}
+    else if(gSortCol==='var_rake'){va=variance(a,'rake')??-Infinity;vb=variance(b,'rake')??-Infinity;}
+    else if(gSortCol==='var_turn'){va=variance(a,'turnover')??-Infinity;vb=variance(b,'turnover')??-Infinity;}
+    else{
+      const field=gMetricView==='turnover'?'turnover':'rake';
+      va=affData[a][gSortCol]?.[field]||0;
+      vb=affData[b][gSortCol]?.[field]||0;
+    }
+    return(vb-va)*gSortDir;
+  });
+
+  if(topN>0)affList=affList.slice(0,topN);
+  if(!affList.length){
+    pEl.innerHTML='<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Nessun affiliato trovato con i filtri impostati</div></div>';
+    return;
+  }
+
+  const showRake=gMetricView==='rake'||gMetricView==='both';
+  const showTurn=gMetricView==='turnover'||gMetricView==='both';
+  const colsPerMonth=showRake&&showTurn?2:1;
+
+  /* ── helpers: icons & chips ── */
+  function sortIcon(col){
+    if(gSortCol!==col)return'<span class="sort-icon">⇅</span>';
+    return gSortDir===1?'<span class="sort-icon active">▼</span>':'<span class="sort-icon active">▲</span>';
+  }
+  function delta(aff,mIdx,field){
+    /* delta vs previous VISIBLE month */
+    const prevIdx=visibleMs.indexOf(visibleMs[mIdx])-1;
+    if(prevIdx<0)return'';
+    const cur=affData[aff][visibleMs[mIdx]]?.[field]||0;
+    const prv=affData[aff][visibleMs[prevIdx]]?.[field]||0;
+    if(!prv)return'';
+    const pct=((cur-prv)/prv*100);
+    if(Math.abs(pct)<0.5)return'';
+    const up=pct>0;
+    return`<span class="delta-chip ${up?'delta-up':'delta-down'}">${up?'▲':'▼'} ${Math.abs(pct).toFixed(0)}%</span>`;
+  }
+  function varChip(aff,field){
+    const pct=variance(aff,field);
+    if(pct===null)return'<span style="color:var(--text3);font-size:12px">—</span>';
+    const up=pct>=0;
+    return`<div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
+      <span class="var-chip ${up?'var-up':'var-down'}">${up?'▲':'▼'} ${Math.abs(pct).toFixed(1)}%</span>
+      <span style="font-size:10px;color:var(--slate3)">${fe(firstVal(aff,field))} → ${fe(lastVal(aff,field))}</span>
+    </div>`;
+  }
+
+  /* ── HEADER ── */
+  /* Month expand/collapse button for middle months */
+  function monthToggleBtn(m){
+    const expanded=gExpandedMonths.has(m);
+    return`<button onclick="toggleMonth('${m}')" class="month-toggle-btn ${expanded?'expanded':''}" title="${expanded?'Nascondi':'Espandi'} ${ml(m)}">
+      ${expanded?'−':'+'}
+    </button>`;
+  }
+
+  /* "expand all / collapse all" control if there are middle months */
+  const hasMiddle=middleMs.length>0;
+  const allExpanded=middleMs.every(m=>gExpandedMonths.has(m));
+
+  let hCols=`<th class="th-aff">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+      <span>Affiliato</span>
+      ${hasMiddle?`<button onclick="toggleAllMonths()" class="expand-all-btn" title="${allExpanded?'Comprimi':'Espandi'} mesi intermedi">
+        ${allExpanded?'− Comprimi':'+ Espandi'} (${middleMs.length})
+      </button>`:''}
+    </div>
+  </th>`;
+
+  /* First month always shown */
+  if(showRake&&showTurn){
+    hCols+=`<th colspan="2" class="th-month-first" style="text-align:center;border-left:1px solid var(--border)">${ml(firstM)}</th>`;
+  } else {
+    hCols+=`<th class="th-num sortable th-month-first" onclick="pivotSort('${firstM}')" style="border-left:1px solid var(--border)">${ml(firstM)}${sortIcon(firstM)}</th>`;
+  }
+
+  /* Middle months: show expand button on header of each hidden gap, or data if expanded */
+  if(hasMiddle){
+    /* group consecutive hidden months into a single "+N" button */
+    let i=0;
+    while(i<middleMs.length){
+      const m=middleMs[i];
+      if(gExpandedMonths.has(m)){
+        /* expanded: show this month header */
+        if(showRake&&showTurn){
+          hCols+=`<th colspan="2" style="text-align:center;border-left:1px solid var(--border);background:rgba(255,255,255,.02)">${ml(m)} ${monthToggleBtn(m)}</th>`;
+        } else {
+          hCols+=`<th class="th-num sortable" onclick="pivotSort('${m}')" style="border-left:1px solid var(--border);background:rgba(255,255,255,.02)">
+            ${ml(m)}${sortIcon(m)} ${monthToggleBtn(m)}</th>`;
+        }
+        i++;
+      } else {
+        /* collect consecutive hidden months */
+        let j=i;
+        while(j<middleMs.length&&!gExpandedMonths.has(middleMs[j]))j++;
+        const hiddenMs=middleMs.slice(i,j);
+        const span=colsPerMonth*hiddenMs.length;
+        hCols+=`<th colspan="${span}" class="th-collapsed" style="border-left:1px solid var(--border)">
+          <button onclick="expandMonths(${JSON.stringify(hiddenMs)})" class="expand-group-btn">
+            + ${hiddenMs.length} ${hiddenMs.length===1?'mese':'mesi'}
+            <span style="font-size:10px;opacity:.6">${ml(hiddenMs[0])}${hiddenMs.length>1?' → '+ml(hiddenMs[hiddenMs.length-1]):''}</span>
+          </button>
+        </th>`;
+        i=j;
+      }
+    }
+  }
+
+  /* Last month always shown (only if different from first) */
+  if(filtMs.length>1){
+    if(showRake&&showTurn){
+      hCols+=`<th colspan="2" class="th-month-last" style="text-align:center;border-left:1px solid var(--border)">${ml(lastM)}</th>`;
+    } else {
+      hCols+=`<th class="th-num sortable th-month-last" onclick="pivotSort('${lastM}')" style="border-left:1px solid var(--border)">${ml(lastM)}${sortIcon(lastM)}</th>`;
+    }
+  }
+
+  /* totals & variance */
+  if(showRake) hCols+=`<th class="th-num sortable" onclick="pivotSort('total_rake')" style="border-left:2px solid rgba(232,0,28,.35)">Totale rake${sortIcon('total_rake')}</th>`;
+  if(showTurn) hCols+=`<th class="th-num sortable" onclick="pivotSort('total_turn')" style="border-left:2px solid rgba(125,211,252,.25)">Totale turnover${sortIcon('total_turn')}</th>`;
+  if(showRake) hCols+=`<th class="th-num sortable" onclick="pivotSort('var_rake')" style="border-left:2px solid rgba(232,0,28,.35);background:rgba(232,0,28,.04)">Δ Rake periodo${sortIcon('var_rake')}</th>`;
+  if(showTurn) hCols+=`<th class="th-num sortable" onclick="pivotSort('var_turn')" style="border-left:2px solid rgba(125,211,252,.25);background:rgba(125,211,252,.03)">Δ Turnover periodo${sortIcon('var_turn')}</th>`;
+
+  /* sub-header for "both" mode */
+  let subRow='';
+  if(showRake&&showTurn){
+    subRow='<tr class="sub-header"><th></th>';
+    visibleMs.forEach(m=>{
+      subRow+=`<th class="th-num sortable" onclick="pivotSort('${m}')" style="border-left:1px solid var(--border)">Rake${sortIcon(m)}</th>`;
+      subRow+=`<th class="th-num sortable" onclick="pivotSort('${m}_t')">Turnover${sortIcon(m+'_t')}</th>`;
+    });
+    subRow+=`<th class="th-num" style="border-left:2px solid rgba(232,0,28,.35)">Rake</th><th class="th-num">Turnover</th>`;
+    subRow+=`<th class="th-num" style="border-left:2px solid rgba(232,0,28,.35);background:rgba(232,0,28,.04)">Δ Rake</th>`;
+    subRow+=`<th class="th-num" style="background:rgba(125,211,252,.03)">Δ Turnover</th>`;
+    subRow+='</tr>';
+  }
+
+  /* ── BODY ROWS ── */
+  const maxRake=Math.max(...affList.map(totRake),1);
+  const maxTurn=Math.max(...affList.map(totTurn),1);
+
+  const bodyRows=affList.map((aff,ri)=>{
+    const rank=ri+1;
+    const rankCls=rank===1?'rank-1':rank===2?'rank-2':rank===3?'rank-3':'';
+    let cells=`<td class="td-aff">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="rank ${rankCls}">${rank}</span>
+        <div>
+          <div class="aff-code">${aff}</div>
+          <div style="font-size:10px;color:var(--text3);max-width:140px;overflow:hidden;text-overflow:ellipsis">${affMeta[aff].padre}</div>
+        </div>
+      </div>
+    </td>`;
+
+    /* ── data cells: mirror header structure (visible months + collapsed spans) ── */
+    /* Walk filtMs same way as header: first, then middle groups, then last */
+    function cellFor(m,mi_visible,field,highlight){
+      const d2=affData[aff][m]||{rake:0,turnover:0};
+      const hl=highlight?'background:rgba(255,255,255,.015)':'';
+      if(field==='both'){
+        return `<td class="td-num" style="border-left:1px solid var(--border);${hl}">
+          <div class="cell-val">${fe(d2.rake)}</div>${mi_visible>0?delta(aff,mi_visible,'rake'):''}</td>
+          <td class="td-num" style="${hl}">
+          <div class="cell-val muted">${fe(d2.turnover)}</div>${mi_visible>0?delta(aff,mi_visible,'turnover'):''}</td>`;
+      } else if(field==='rake'){
+        return`<td class="td-num" style="border-left:1px solid var(--border);${hl}">
+          <div class="cell-val">${fe(d2.rake)}</div>${mi_visible>0?delta(aff,mi_visible,'rake'):''}</td>`;
+      } else {
+        return`<td class="td-num" style="border-left:1px solid var(--border);${hl}">
+          <div class="cell-val muted">${fe(d2.turnover)}</div>${mi_visible>0?delta(aff,mi_visible,'turnover'):''}</td>`;
+      }
+    }
+    const viewField=showRake&&showTurn?'both':showRake?'rake':'turnover';
+    let visIdx=0;
+
+    /* first month */
+    cells+=cellFor(firstM,visIdx,viewField,true);visIdx++;
+
+    /* middle months */
+    if(hasMiddle){
+      let i=0;
+      while(i<middleMs.length){
+        const m=middleMs[i];
+        if(gExpandedMonths.has(m)){
+          cells+=cellFor(m,visIdx,viewField,false);visIdx++;i++;
+        } else {
+          /* collect consecutive hidden */
+          let j=i;while(j<middleMs.length&&!gExpandedMonths.has(middleMs[j]))j++;
+          const hiddenMs=middleMs.slice(i,j);
+          const span=colsPerMonth*hiddenMs.length;
+          /* sum hidden months for display in collapsed cell */
+          const sumR=hiddenMs.reduce((s,hm)=>s+(affData[aff][hm]?.rake||0),0);
+          const sumT=hiddenMs.reduce((s,hm)=>s+(affData[aff][hm]?.turnover||0),0);
+          let inner='';
+          if(viewField==='both'||viewField==='rake') inner+=`<span style="font-size:11px;color:var(--slate3)">${fe(sumR)}</span>`;
+          if(viewField==='both') inner+=' / ';
+          if(viewField==='both'||viewField==='turnover') inner+=`<span style="font-size:11px;color:var(--slate3)">${fe(sumT)}</span>`;
+          cells+=`<td colspan="${span}" class="td-num" style="border-left:1px solid var(--border);opacity:.5;font-style:italic">${inner}</td>`;
+          i=j;
+        }
+      }
+    }
+
+    /* last month */
+    if(filtMs.length>1){cells+=cellFor(lastM,visIdx,viewField,true);visIdx++;}
+
+    /* totals */
+    const tr=totRake(aff), tt=totTurn(aff);
+    if(showRake) cells+=`<td class="td-num td-total" style="border-left:2px solid rgba(232,0,28,.35)">
+      <div class="cell-val strong">${fe(tr)}</div>
+      <div class="mini-bar" style="width:${Math.round(tr/maxRake*60)}px"></div></td>`;
+    if(showTurn) cells+=`<td class="td-num td-total" style="${!showRake?'border-left:2px solid rgba(125,211,252,.25)':''}">
+      <div class="cell-val strong muted">${fe(tt)}</div>
+      <div class="mini-bar sky" style="width:${Math.round(tt/maxTurn*60)}px"></div></td>`;
+    if(showRake) cells+=`<td class="td-num" style="border-left:2px solid rgba(232,0,28,.35);background:rgba(232,0,28,.04)">${varChip(aff,'rake')}</td>`;
+    if(showTurn) cells+=`<td class="td-num" style="background:rgba(125,211,252,.03)">${varChip(aff,'turnover')}</td>`;
+
+    return`<tr>${cells}</tr>`;
+  }).join('');
+
+  pEl.innerHTML=`<table class="pivot-table">
+    <thead><tr>${hCols}</tr>${subRow}</thead>
+    <tbody>${bodyRows}</tbody>
+  </table>`;
+
+  const prodLabel=selCat?(' — '+selCat):'';
+  const metLabel=showRake&&showTurn?'Rake + Turnover':showRake?'Rake':'Turnover';
+  document.getElementById('g-pivot-title').textContent=
+    `${metLabel}${prodLabel} — ${affList.length} affiliati — ${ml(fromM)} → ${ml(toM)}`;
+}
+
+function normalizeKey(k){
+  if(/^\d{4}-\d{2}$/.test(k))return k;
+  const it=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+  const clean=k.replace(/^undefined\s*/,'').trim();
+  const parts=clean.split(' ');
+  if(parts.length===2){
+    const mi=it.indexOf(parts[0]);
+    if(mi>=0&&/^\d{4}$/.test(parts[1]))return parts[1]+'-'+String(mi+1).padStart(2,'0');
+  }
+  return k;
+}
+function loadDB(){
+  try{
+    const s=localStorage.getItem('mbt_aff_db');
+    if(!s)return;
+    const raw=JSON.parse(s);
+    db={};
+    Object.entries(raw).forEach(([k,v])=>{db[normalizeKey(k)]=v;});
+  }catch(e){}
+}
+function exportCSV(){
+  const ms=months();if(!ms.length)return;
+  const rows=ms.flatMap(m=>(db[m]||[]).map(r=>({...r,_month:m})));
+  const h='mese,affiliato,padre,rete,categoria,ggr,rake,giocato,vinto,payout,ticket,conti';
+  const lines=rows.map(r=>[r._month,r.aff,r.padre,r.network,r.cat,r.ggr,r.rake,r.giocato,r.vinto,'',r.tickets,r.conti].join(','));
+  const blob=new Blob([[h,...lines].join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mbt_affiliati.csv';a.click();
+}
+
+/* ── theme ── */
+function applyLogoTheme(isLight){
+  document.getElementById('logo-dark').style.display=isLight?'none':'inline-flex';
+  document.getElementById('logo-light').style.display=isLight?'inline-flex':'none';
+}
+function toggleTheme(){
+  const isLight=document.body.classList.toggle('light');
+  localStorage.setItem('mbt_theme', isLight?'light':'dark');
+  const btn=document.getElementById('theme-btn');
+  if(isLight){btn.innerHTML='<span id="theme-icon">🌙</span> Dark';}
+  else{btn.innerHTML='<span id="theme-icon">☀️</span> Light';}
+  applyLogoTheme(isLight);
+}
+function initTheme(){
+  const saved=localStorage.getItem('mbt_theme');
+  if(saved==='light'){
+    document.body.classList.add('light');
+    const btn=document.getElementById('theme-btn');
+    if(btn)btn.innerHTML='<span id="theme-icon">🌙</span> Dark';
+    applyLogoTheme(true);
+  }
+}
+function saveDB(){
+  try{localStorage.setItem('mbt_aff_db',JSON.stringify(db))}catch(e){}
+  syncToFirestore().catch(e=>console.warn('Firestore sync error:',e));
+}
+function appInit(){
+  loadDB();updateBadge();initTheme();renderOverview();renderMonthsList();
+}
 </script>
 </body>
 </html>
