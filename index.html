@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marathonbet — Affiliate Performance Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --red:#e8001c;--red-dark:#b30015;
+  --sky:#7dd3fc;--sky2:#38bdf8;
+  --green:#4ade80;--green-bg:#0f2a0f;--green-br:#166534;
+  --orange:#fb923c;--orange-bg:#2a1a00;
+}
+/* ── DARK THEME (default) ── */
+body{
+  --bg:       #0a1525;
+  --navy:     #0d1b2e;
+  --navy2:    #132035;
+  --navy3:    #1a2c45;
+  --navy4:    #1e3a5f;
+  --slate:    #94a3b8;
+  --slate2:   #64748b;
+  --slate3:   #475569;
+  --slate4:   #334155;
+  --white:    #e2e8f0;
+  --text:     #e2e8f0;
+  --text2:    #94a3b8;
+  --text3:    #64748b;
+  --border:   rgba(255,255,255,0.07);
+  --border2:  rgba(255,255,255,0.12);
+  --card-bg:  #132035;
+  --row-hover:rgba(255,255,255,0.025);
+  --sticky-bg:#132035;
+  --input-bg: #1a2c45;
+  --sub-hdr:  rgba(255,255,255,0.015);
+  --total-bg: rgba(255,255,255,0.02);
+  --var-rake-bg:  rgba(232,0,28,0.04);
+  --var-turn-bg:  rgba(125,211,252,0.03);
+}
+/* ── LIGHT THEME ── */
+body.light{
+  --bg:       #f5f6fa;
+  --navy:     #ffffff;
+  --navy2:    #ffffff;
+  --navy3:    #f0f2f8;
+  --navy4:    #e4e8f5;
+  --slate:    #374151;
+  --slate2:   #6b7280;
+  --slate3:   #9ca3af;
+  --slate4:   #d1d5db;
+  --white:    #111827;
+  --text:     #111827;
+  --text2:    #374151;
+  --text3:    #9ca3af;
+  --border:   rgba(0,0,0,0.08);
+  --border2:  rgba(0,0,0,0.15);
+  --card-bg:  #ffffff;
+  --row-hover:rgba(0,0,0,0.025);
+  --sticky-bg:#ffffff;
+  --input-bg: #f0f2f8;
+  --sub-hdr:  rgba(0,0,0,0.02);
+  --total-bg: rgba(0,0,0,0.02);
+  --var-rake-bg:  rgba(232,0,28,0.04);
+  --var-turn-bg:  rgba(14,165,233,0.04);
+}
+html{font-size:16px}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased;transition:background .25s,color .25s}
+
+/* HEADER */
+header{background:var(--navy);border-bottom:1px solid var(--border);padding:0 24px;position:sticky;top:0;z-index:100;transition:background .25s}
+.header-inner{display:flex;align-items:center;justify-content:space-between;height:56px;gap:16px}
+
+.header-title{font-size:13px;font-weight:500;color:var(--text2);padding-left:20px;border-left:1px solid var(--border);margin-left:4px}
+.header-right{display:flex;align-items:center;gap:10px}
+.live-pill{display:flex;align-items:center;gap:5px;background:rgba(232,0,28,.12);border:1px solid rgba(232,0,28,.3);color:#ff4d63;font-size:11px;font-weight:700;padding:4px 10px;border-radius:6px}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--red);animation:pulse 1.4s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.header-btn{background:transparent;border:1px solid var(--border2);color:var(--text);font-size:12px;font-weight:500;padding:6px 14px;border-radius:6px;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:5px;transition:all .15s}
+.header-btn:hover{background:rgba(255,255,255,.06)}
+
+/* TABS */
+.tabs{background:var(--navy);border-bottom:1px solid var(--border);padding:0 24px;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;transition:background .25s}
+.tabs::-webkit-scrollbar{display:none}
+.tab{color:var(--text2);font-size:13px;font-weight:500;padding:12px 16px;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;transition:color .15s,border-color .15s;background:none;border-top:none;border-left:none;border-right:none;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:6px}
+.tab:hover{color:#fff}
+.tab.active{color:#fff;border-bottom-color:var(--red)}
+.tab-count{background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 5px;border-radius:4px;min-width:16px;text-align:center}
+
+/* LAYOUT */
+.page{max-width:1440px;margin:0 auto;padding:24px}
+.panel{display:none}.panel.active{display:block}
+
+/* KPI STRIP */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:24px}
+.kpi-card{background:var(--navy2);border:1px solid var(--border);border-radius:10px;padding:16px 18px;position:relative;overflow:hidden}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:var(--red)}
+.kpi-label{font-size:11px;font-weight:600;color:var(--slate2);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px}
+.kpi-value{font-size:24px;font-weight:700;color:var(--text);font-family:'Barlow Condensed',sans-serif;letter-spacing:-.5px}
+.kpi-delta{font-size:11px;margin-top:5px;display:flex;align-items:center;gap:4px}
+.delta-up{color:#4ade80}.delta-down{color:#f87171}
+
+/* MONTH PILLS */
+.month-pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px}
+.mpill{background:transparent;border:1px solid var(--border);color:var(--slate2);font-size:12px;font-weight:600;padding:5px 14px;border-radius:20px;cursor:pointer;transition:all .15s;font-family:'Inter',sans-serif}
+.mpill:hover{border-color:var(--slate);color:#fff}
+.mpill.active{background:var(--red);border-color:var(--red);color:#fff}
+
+/* SECTION LABELS */
+.section-label{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px}
+
+/* CHARTS GRID */
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+.chart-card{background:var(--navy2);border:1px solid var(--border);border-radius:12px;padding:18px 20px}
+.chart-card-title{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:14px;display:flex;align-items:center;gap:6px}
+.chart-card-title::before{content:'';width:3px;height:12px;background:var(--red);border-radius:2px;display:inline-block}
+
+/* TABLE */
+.table-wrap{background:var(--navy2);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px}
+.table-toolbar{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);gap:12px;flex-wrap:wrap}
+.table-toolbar-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.tbl-select{background:var(--navy3);border:1px solid var(--border);color:var(--white);font-size:12px;font-weight:500;padding:6px 10px;border-radius:7px;cursor:pointer;font-family:'Inter',sans-serif}
+.tbl-search{background:var(--navy3);border:1px solid var(--border);color:var(--white);font-size:12px;padding:6px 12px;border-radius:7px;font-family:'Inter',sans-serif;width:200px}
+.tbl-search::placeholder{color:var(--slate3)}
+.metric-toggle{background:transparent;border:1px solid var(--border);color:var(--slate2);font-size:11px;font-weight:600;padding:4px 12px;border-radius:6px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s}
+.metric-toggle:hover{border-color:var(--slate);color:#fff}
+.metric-toggle.active{background:var(--red);border-color:var(--red);color:#fff}
+.pivot-table{width:100%;border-collapse:collapse;font-size:12px}
+.pivot-table thead tr:first-child th{padding:10px 12px;border-bottom:1px solid var(--border);font-size:10px;font-weight:700;color:var(--slate3);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap;background:rgba(255,255,255,.02)}
+.sub-header th{padding:6px 12px;border-bottom:1px solid var(--border);font-size:10px;font-weight:600;color:var(--slate3);letter-spacing:.05em;background:var(--sub-hdr);white-space:nowrap}
+.th-aff{text-align:left;min-width:180px;position:sticky;left:0;background:var(--navy2);z-index:2}
+.th-num{text-align:right;min-width:100px}
+.th-num.sortable{cursor:pointer;user-select:none}
+.th-num.sortable:hover{color:#fff}
+.sort-icon{margin-left:4px;opacity:.35;font-size:10px}
+.sort-icon.active{opacity:1;color:var(--red)}
+.td-aff{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle;position:sticky;left:0;background:var(--navy2);z-index:1;min-width:180px}
+.td-num{padding:8px 12px;border-bottom:1px solid var(--border);text-align:right;vertical-align:middle;white-space:nowrap}
+.td-total{background:var(--total-bg)}
+.cell-val{font-size:13px;font-weight:600;color:var(--text);font-family:'Barlow Condensed',sans-serif;letter-spacing:.2px}
+.cell-val.muted{color:var(--sky);font-weight:500}
+.cell-val.strong{font-size:14px}
+.delta-chip{display:inline-block;font-size:10px;font-weight:700;padding:1px 5px;border-radius:3px;margin-top:2px}
+.delta-chip.delta-up{background:rgba(74,222,128,.12);color:#4ade80}
+.delta-chip.delta-down{background:rgba(248,113,113,.12);color:#f87171}
+.mini-bar{height:3px;border-radius:2px;background:var(--red);margin-top:4px;opacity:.6;min-width:2px}
+.mini-bar.sky{background:var(--sky)}
+.month-toggle-btn{background:rgba(255,255,255,.08);border:1px solid var(--border);color:var(--slate2);font-size:11px;font-weight:700;width:18px;height:18px;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;line-height:1;padding:0;font-family:'Inter',sans-serif;transition:all .15s;flex-shrink:0}
+.month-toggle-btn:hover{background:rgba(255,255,255,.15);color:#fff}
+.month-toggle-btn.expanded{background:rgba(232,0,28,.15);border-color:rgba(232,0,28,.4);color:#ff6b7a}
+.expand-all-btn{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--slate2);font-size:10px;font-weight:600;padding:2px 8px;border-radius:5px;cursor:pointer;white-space:nowrap;font-family:'Inter',sans-serif;transition:all .15s}
+.expand-all-btn:hover{background:rgba(255,255,255,.12);color:#fff}
+.th-collapsed{text-align:center;padding:4px 6px !important}
+.expand-group-btn{background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.15);color:var(--slate2);font-size:11px;font-weight:600;padding:5px 10px;border-radius:6px;cursor:pointer;white-space:nowrap;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:'Inter',sans-serif;transition:all .15s;width:100%;min-width:80px}
+.expand-group-btn:hover{background:rgba(232,0,28,.1);border-color:rgba(232,0,28,.3);color:#ff6b7a}
+.th-month-first,.th-month-last{background:rgba(255,255,255,.02)}
+.var-chip{display:inline-block;font-size:13px;font-weight:700;padding:4px 10px;border-radius:6px;font-family:'Barlow Condensed',sans-serif;letter-spacing:.3px}
+.var-up{background:rgba(74,222,128,.12);color:#4ade80;border:1px solid rgba(74,222,128,.2)}
+.var-down{background:rgba(248,113,113,.12);color:#f87171;border:1px solid rgba(248,113,113,.2)}
+.pivot-table tbody tr:hover .td-aff,.pivot-table tbody tr:hover .td-num{background:var(--row-hover)}
+.export-btn{background:transparent;border:1px solid var(--border);color:var(--slate);font-size:12px;font-weight:600;padding:6px 14px;border-radius:7px;cursor:pointer;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:5px;transition:all .15s}
+.export-btn:hover{border-color:var(--sky);color:var(--sky)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead tr{background:var(--sub-hdr)}
+th{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap;cursor:pointer;user-select:none}
+th:hover{color:var(--slate)}
+th.sort-asc::after{content:' ▲';font-size:9px}
+th.sort-desc::after{content:' ▼';font-size:9px}
+td{padding:11px 14px;border-bottom:1px solid var(--border);color:var(--text);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(255,255,255,.025)}
+.rank{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:700;background:rgba(255,255,255,.06);color:var(--slate)}
+.rank-1{background:rgba(251,191,36,.15);color:#fbbf24}
+.rank-2{background:rgba(148,163,184,.12);color:#cbd5e1}
+.rank-3{background:rgba(232,0,28,.12);color:#ff4d63}
+.aff-code{font-weight:600;color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:14px;letter-spacing:.3px}
+.aff-parent{font-size:11px;color:var(--slate3);margin-top:1px}
+.badge-pos{background:rgba(74,222,128,.1);color:#4ade80;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;display:inline-block}
+.badge-neg{background:rgba(248,113,113,.1);color:#f87171;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;display:inline-block}
+.badge-cat{background:rgba(255,255,255,.06);color:var(--slate);font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;display:inline-block}
+.ggr-bar{display:inline-block;height:4px;border-radius:2px;background:var(--red);margin-left:8px;vertical-align:middle;opacity:.7}
+.net-tag{font-size:10px;color:var(--slate3);background:rgba(255,255,255,.04);padding:2px 6px;border-radius:4px;border:1px solid var(--border)}
+
+/* UPLOAD */
+.upload-zone{border:1px dashed rgba(232,0,28,.4);border-radius:12px;padding:40px;text-align:center;cursor:pointer;transition:all .15s;margin-bottom:20px;background:rgba(232,0,28,.03)}
+.upload-zone:hover{border-color:var(--red);background:rgba(232,0,28,.06)}
+.upload-zone input{display:none}
+.upload-icon{font-size:32px;margin-bottom:12px;opacity:.5}
+.upload-title{font-size:15px;font-weight:600;color:#fff;margin-bottom:6px}
+.upload-sub{font-size:13px;color:var(--slate2)}
+.upload-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.field-label{font-size:12px;font-weight:500;color:var(--slate);display:block;margin-bottom:7px}
+.field-input{background:var(--navy3);border:1px solid var(--border);color:#fff;font-size:13px;padding:8px 12px;border-radius:8px;width:100%;font-family:'Inter',sans-serif;transition:border-color .15s}
+.field-input:focus{outline:none;border-color:var(--red)}
+.btn-confirm{background:var(--red);border:none;color:#fff;font-size:13px;font-weight:700;padding:10px 24px;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;transition:background .15s}
+.btn-confirm:hover{background:var(--red-dark)}
+.btn-cancel{background:transparent;border:1px solid var(--border);color:var(--slate);font-size:13px;font-weight:500;padding:10px 18px;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s}
+.btn-cancel:hover{border-color:var(--slate);color:#fff}
+.preview-box{background:var(--navy3);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:16px}
+.preview-stat{font-size:13px;color:var(--slate);margin-bottom:10px}
+.preview-stat strong{color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:16px}
+.months-table tr td:first-child{font-weight:600;color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:15px}
+.del-btn{background:transparent;border:1px solid rgba(232,0,28,.3);color:#ff4d63;font-size:11px;font-weight:600;padding:3px 10px;border-radius:5px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s}
+.del-btn:hover{background:rgba(232,0,28,.1)}
+
+/* EMPTY */
+.empty-state{text-align:center;padding:60px 24px;color:var(--slate3)}
+.empty-icon{font-size:36px;margin-bottom:12px;opacity:.35}
+.empty-text{font-size:14px;line-height:1.6}
+
+/* TREND FILTERS */
+.trend-filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+
+/* FOOTER */
+footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;margin-top:0;transition:background .25s}
+.footer-logo{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:#fff}
+.footer-logo span{background:var(--red);padding:0 5px;border-radius:3px;margin-left:1px}
+.footer-info{font-size:11px;color:var(--text3)}
+.footer-adm{font-size:11px;color:var(--text3);border:1px solid var(--border);padding:4px 10px;border-radius:5px}
+
+@media(max-width:900px){
+  .charts-grid{grid-template-columns:1fr}
+  .upload-row{grid-template-columns:1fr}
+}
+@media(max-width:600px){
+  .page{padding:16px}
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+}
+
+/* ── LOGIN SCREEN ── */
+#login-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;transition:background .25s}
+.login-card{background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:40px 44px;width:100%;max-width:400px}
+.login-logo{display:flex;justify-content:center;margin-bottom:28px}
+.login-title{font-size:15px;font-weight:600;color:var(--text);text-align:center;margin-bottom:6px}
+.login-sub{font-size:12px;color:var(--text3);text-align:center;margin-bottom:28px}
+.login-field{margin-bottom:16px}
+.login-field label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bottom:6px}
+.login-field input{width:100%;background:var(--input-bg);border:1px solid var(--border);color:var(--text);font-size:14px;padding:10px 14px;border-radius:8px;font-family:'Inter',sans-serif;transition:border-color .15s}
+.login-field input:focus{outline:none;border-color:var(--red)}
+.login-btn{width:100%;background:var(--red);border:none;color:#fff;font-size:14px;font-weight:700;padding:12px;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;transition:background .15s;margin-top:8px}
+.login-btn:hover{background:var(--red-dark)}
+.login-btn:disabled{opacity:.5;cursor:not-allowed}
+.login-error{font-size:12px;color:#f87171;text-align:center;margin-top:12px;min-height:18px}
+.login-spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* ── SUPABASE STATUS ── */
+.user-pill{display:flex;align-items:center;gap:6px;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.2);color:#4ade80;font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px}
+.sync-status{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:#4ade80}
+.sync-dot.syncing{background:#fbbf24;animation:pulse 1s infinite}
+.sync-dot.error{background:#f87171}
+
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <span id="login-logo-dark"><svg width="180" height="24" viewBox="0 0 220 30" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10.9465 5.8156C12.6845 5.8156 14.3865 5.82372 16.1522 5.82372C17.9179 5.82372 19.351 6.29228 19.9885 7.94434L20.4598 6.27849C20.5374 5.94136 20.7296 5.84387 20.9454 5.8248L21.0418 5.82941H26.2781C29.1248 5.82944 31.1705 8.14668 30.5053 10.949C30.4138 11.3371 30.3221 11.7502 30.2251 12.0911L26.8463 24.124C26.7742 24.3817 26.5109 24.5896 26.2532 24.5896H21.4798C21.222 24.5896 21.0724 24.3817 21.1417 24.124L24.734 11.1986C24.82 10.8826 24.9031 10.4946 24.407 10.4946H20.4652L16.6844 24.1267C16.6151 24.3817 16.3517 24.5896 16.0967 24.5896H11.3623C11.1073 24.5896 10.9576 24.3817 11.0269 24.1267L14.6082 11.1957C14.7024 10.8464 14.7524 10.4916 14.2812 10.4916H10.3174L6.53634 24.124C6.46701 24.379 6.20388 24.5868 5.94893 24.5869H1.21151C0.956595 24.5868 0.806897 24.379 0.876121 24.124L4.46309 11.1957C4.54901 10.8797 4.6321 10.4916 4.13609 10.4916C2.86935 10.4916 1.61636 10.4862 0.34962 10.4862C0.0973759 10.4862 -0.0523615 10.2809 0.0169363 10.0287L1.03691 6.2728C1.12283 5.91529 1.364 5.81563 1.6162 5.8156L6.00713 5.82372C7.72567 5.82651 9.31659 6.25349 9.88483 7.96924L10.3672 6.2728C10.4614 5.90697 10.6943 5.81562 10.9465 5.8156Z" fill="white"/><path fill-rule="evenodd" clip-rule="evenodd" d="M46.1942 5.7352C46.7984 5.7352 47.3197 5.84591 47.7604 6.04271C49.5039 6.8244 49.9999 8.97005 49.4317 11.0129L47.1892 19.0956L47.1865 19.104H47.17L45.809 24.1267C45.7397 24.3762 45.4818 24.5785 45.2324 24.5785H41.238C40.9858 24.5785 40.8085 24.4287 40.8279 24.1321L40.9137 22.7573C40.6559 23.0372 40.3206 23.3673 39.9187 23.6749C39.3781 24.063 38.4662 24.5896 37.7815 24.5896H33.9894C30.8045 24.609 29.4214 22.9209 30.5053 18.9543C30.702 18.2309 30.8932 17.5101 31.09 16.7812C31.7524 14.3169 33.8704 12.5318 36.476 12.5318H43.3835L43.7078 11.534C43.7827 11.1765 43.7659 10.8882 43.5941 10.6553C43.4223 10.4225 43.1617 10.2865 42.8097 10.3032C39.8715 10.4556 36.9969 10.4667 34.0449 10.6137C33.6181 10.633 33.693 10.3947 33.7955 10.0566L34.832 6.65259C34.9651 6.2174 35.0346 6.1399 35.8523 6.08169L42.039 5.88192C43.4249 5.83757 44.7777 5.73521 46.1942 5.7352ZM37.9756 16.5151C37.4212 16.5151 36.7724 16.7783 36.5285 17.4103L36.0131 19.2897C35.9493 19.5225 35.9493 19.686 36.0131 19.7775C36.0796 19.8662 36.2347 19.9134 36.4703 19.9134L41.4126 19.8579L41.5707 19.2732L42.3135 16.5124L37.9756 16.5151Z" fill="white"/><path d="M165.703 0.731207C165.823 0.299191 166.216 0 166.664 0H215.417C217.722 0 219.393 2.19567 218.779 4.41733L211.94 29.1683C211.821 29.6003 211.428 29.8995 210.98 29.8995H162.227C159.922 29.8995 158.25 27.7038 158.864 25.4822L165.703 0.731207Z" fill="#FF3E5A"/><path d="M170.998 6.72729H179.736C182.12 7.0499 182.608 7.69903 183.095 8.34816 183.15 9.33563 182.781 10.6614 182.537 11.5348 182.147 12.2469 181.612 12.7898 181.081 13.3367 180.507 13.7183 179.889 13.9386 180.979 14.2573 181.557 15.0441 181.628 16.2991 181.648 16.7515 181.573 17.2747 181.404 17.8727 181.002 19.3008 180.373 20.3473 179.515 21.0201 178.658 21.6889 177.513 22.0233 176.085 22.0233H166.69L170.99 6.73123 170.998 6.72729ZM177.662 17.2118C177.906 16.3384 177.595 15.9017 176.722 15.9017H172.351L171.49 18.9625H175.86C176.734 18.9625 177.292 18.5258 177.54 17.6524L177.662 17.2157V17.2118ZM178.724 11.0942C178.968 10.2208 178.658 9.78413 177.784 9.78413H174.07L173.209 12.841H176.923C177.796 12.841 178.355 12.4043 178.603 11.5309L178.724 11.0942Z" fill="white"/><path d="M193.833 22.0193H182.206L186.506 6.72729H198.133L197.271 9.78413H189.575L188.745 12.7347H194.69L193.829 15.7916H187.883L186.994 18.9586H194.69L193.829 22.0154 193.833 22.0193Z" fill="white"/><path d="M203.3 22.0193H199.366L202.808 9.78413H198.221L199.083 6.72729H212.191L211.33 9.78413H206.742L203.3 22.0193Z" fill="white"/></svg></span>
+    </div>
+    <div class="login-title">Affiliate Performance Tracker</div>
+    <div class="login-sub">Accedi con le credenziali fornite dall'amministratore</div>
+    <div class="login-field">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="nome@marathonbet.it" autocomplete="email">
+    </div>
+    <div class="login-field">
+      <label>Password</label>
+      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="login-btn" id="login-btn" onclick="doLogin()">Accedi</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- APP (hidden until login) -->
+<div id="app" style="display:none">
+
+<header>
+  <div class="header-inner">
+    <div style="display:flex;align-items:center;gap:20px">
+      <a href="#" id="header-logo" style="display:flex;align-items:center;text-decoration:none;flex-shrink:0">
+      <span id="logo-dark"><svg width="160" height="22" viewBox="0 0 220 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M10.9465 5.8156C12.6845 5.8156 14.3865 5.82372 16.1522 5.82372C17.9179 5.82372 19.351 6.29228 19.9885 7.94434L20.4598 6.27849C20.5374 5.94136 20.7296 5.84387 20.9454 5.8248L21.0418 5.82941H26.2781C29.1248 5.82944 31.1705 8.14668 30.5053 10.949C30.4138 11.3371 30.3221 11.7502 30.2251 12.0911L26.8463 24.124C26.7742 24.3817 26.5109 24.5896 26.2532 24.5896H21.4798C21.222 24.5896 21.0724 24.3817 21.1417 24.124L24.734 11.1986C24.82 10.8826 24.9031 10.4946 24.407 10.4946H20.4652L16.6844 24.1267C16.6151 24.3817 16.3517 24.5896 16.0967 24.5896H11.3623C11.1073 24.5896 10.9576 24.3817 11.0269 24.1267L14.6082 11.1957C14.7024 10.8464 14.7524 10.4916 14.2812 10.4916H10.3174L6.53634 24.124C6.46701 24.379 6.20388 24.5868 5.94893 24.5869H1.21151C0.956595 24.5868 0.806897 24.379 0.876121 24.124L4.46309 11.1957C4.54901 10.8797 4.6321 10.4916 4.13609 10.4916C2.86935 10.4916 1.61636 10.4862 0.34962 10.4862C0.0973759 10.4862 -0.0523615 10.2809 0.0169363 10.0287L1.03691 6.2728C1.12283 5.91529 1.364 5.81563 1.6162 5.8156L6.00713 5.82372C7.72567 5.82651 9.31659 6.25349 9.88483 7.96924L10.3672 6.2728C10.4614 5.90697 10.6943 5.81562 10.9465 5.8156Z" fill="white"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M46.1942 5.7352C46.7984 5.7352 47.3197 5.84591 47.7604 6.04271C49.5039 6.8244 49.9999 8.97005 49.4317 11.0129L47.1892 19.0956L47.1865 19.104H47.17L45.809 24.1267C45.7397 24.3762 45.4818 24.5785 45.2324 24.5785H41.238C40.9858 24.5785 40.8085 24.4287 40.8279 24.1321L40.9137 22.7573C40.6559 23.0372 40.3206 23.3673 39.9187 23.6749C39.3781 24.063 38.4662 24.5896 37.7815 24.5896H33.9894C30.8045 24.609 29.4214 22.9209 30.5053 18.9543C30.702 18.2309 30.8932 17.5101 31.09 16.7812C31.7524 14.3169 33.8704 12.5318 36.476 12.5318H43.3835L43.7078 11.534C43.7827 11.1765 43.7659 10.8882 43.5941 10.6553C43.4223 10.4225 43.1617 10.2865 42.8097 10.3032C39.8715 10.4556 36.9969 10.4667 34.0449 10.6137C33.6181 10.633 33.693 10.3947 33.7955 10.0566L34.832 6.65259C34.9651 6.2174 35.0346 6.1399 35.8523 6.08169L42.039 5.88192C43.4249 5.83757 44.7777 5.73521 46.1942 5.7352ZM37.9756 16.5151C37.4212 16.5151 36.7724 16.7783 36.5285 17.4103L36.0131 19.2897C35.9493 19.5225 35.9493 19.686 36.0131 19.7775C36.0796 19.8662 36.2347 19.9134 36.4703 19.9134L41.4126 19.8579L41.5707 19.2732L42.3135 16.5124L37.9756 16.5151Z" fill="white"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M80.5742 5.7352C81.1785 5.73521 81.6995 5.84595 82.1402 6.04271C83.8838 6.82439 84.38 8.97004 83.8118 11.0129L81.5693 19.0956L81.5666 19.104H81.5498L80.1891 24.1267C80.1198 24.3762 79.8619 24.5785 79.6125 24.5785H75.6181C75.3659 24.5785 75.1883 24.4287 75.2077 24.1321L75.2938 22.7573C75.036 23.0372 74.7006 23.3673 74.2987 23.6749C73.7582 24.063 72.846 24.5896 72.1613 24.5896H68.1643C64.9794 24.609 63.5963 22.9209 64.6802 18.9543C64.877 18.2309 65.0681 17.5101 65.2649 16.7812C65.9273 14.3169 68.0453 12.5318 70.6509 12.5318H77.7636L78.0879 11.534C78.1628 11.1765 78.1432 10.8882 77.9742 10.6553C77.8052 10.4225 77.5418 10.2866 77.1898 10.3032C74.2515 10.4556 71.377 10.4667 68.4249 10.6137C67.9981 10.6331 68.0728 10.3947 68.1754 10.0566L69.2121 6.65259C69.3452 6.21742 69.4145 6.1399 70.2321 6.08169L76.4191 5.88192C77.805 5.83757 79.1578 5.7352 80.5742 5.7352ZM72.1532 16.5151C71.5989 16.5151 70.95 16.7783 70.7061 17.4103L70.1907 19.2897C70.1269 19.5225 70.127 19.686 70.1907 19.7775C70.2572 19.8662 70.4123 19.9134 70.6479 19.9134L75.7954 19.8579L75.9535 19.2732L76.6963 16.5124L72.1532 16.5151Z" fill="white"/>
+<path d="M109.726 0C110.164 0.0110948 110.045 0.532102 109.959 0.753884L108.105 7.26517H108.166C109.022 6.51956 109.28 5.80725 110.436 5.80721H114.325C117.69 5.78781 118.768 7.93594 117.978 10.8243C116.909 14.7267 115.875 18.6059 114.807 22.4747L114.347 24.1351C114.281 24.3846 114.023 24.5869 113.773 24.5869H109.133C108.884 24.5869 108.737 24.3846 108.803 24.1351L112.313 11.1071C112.437 10.6498 112.34 10.4778 111.855 10.4778H107.351L103.526 24.1351C103.456 24.3846 103.198 24.5869 102.949 24.5869H98.3088C98.0566 24.5869 97.9099 24.3845 97.9791 24.1351L104.435 0.460181C104.501 0.205181 104.765 2.66533e-05 105.017 0H109.726Z" fill="white"/>
+<path d="M66.6067 5.73791C66.7619 5.7379 67.0612 5.72691 66.9532 6.13421L65.7445 10.5888C65.5533 11.2845 65.5033 11.2346 65.0294 11.2262C62.2159 11.2262 60.5858 11.1487 57.8167 12.2297C56.8382 15.786 55.5744 20.3901 54.5267 24.1321C54.4574 24.3816 54.1995 24.5842 53.9501 24.5842H49.3099C49.0604 24.5842 48.9106 24.3816 48.9799 24.1321L53.8613 6.25629C53.9278 6.00131 54.1911 5.79617 54.4433 5.79611H59.1528C59.4051 5.79611 59.5575 6.00127 59.4882 6.25629L59.3886 6.5527C59.3692 6.6026 59.2223 7.12389 58.9866 7.97764C59.9762 7.32902 60.9435 6.82168 61.8888 6.45579C63.1195 5.97625 64.3142 5.73791 65.4673 5.73791H66.6067Z" fill="white"/>
+<path d="M94.8136 1.77955C95.0658 1.77958 95.2156 1.9848 95.1463 2.23702L94.165 5.8045L93.7381 7.27356C94.298 6.7663 94.9965 5.9542 96.1801 5.8045H99.5396C99.7919 5.80451 99.9416 6.00949 99.8723 6.2617L98.8551 10.0149C98.7885 10.2671 98.528 10.4723 98.2758 10.4724H92.9009L90.4727 19.2813C90.4062 19.5169 90.4062 19.6806 90.4727 19.7721C90.5393 19.8635 90.6917 19.9079 90.9272 19.908H96.0109C96.2631 19.908 96.4128 20.1129 96.3436 20.3652L95.7421 22.6022C95.6977 22.7657 95.5729 22.91 95.4205 22.9904L93.0091 24.4927C92.9121 24.5537 92.8067 24.5842 92.7125 24.5842H89.3889C85.4251 24.5842 83.9838 22.6022 85.0648 18.6357L89.5551 2.23702C89.6216 1.98478 89.8824 1.77955 90.1346 1.77955H94.8136Z" fill="white"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M133.726 5.87082C137.091 5.85143 138.161 8.00808 137.354 10.9019L135.081 19.0542C134.599 20.7783 133.739 22.1364 132.495 23.1149C131.25 24.0933 129.762 24.5842 128.041 24.5842H122.319C118.954 24.6036 117.884 22.4469 118.691 19.5531L120.966 11.4008C121.446 9.67674 122.305 8.31863 123.55 7.34015C124.795 6.36167 126.283 5.87082 128.005 5.87082H133.726ZM127.996 10.536C127.079 10.536 126.491 10.9989 126.236 11.9192C125.579 14.3058 124.817 16.8948 124.154 19.2759C124.088 19.5143 124.088 19.6779 124.154 19.7694C124.221 19.8608 124.373 19.905 124.609 19.905L127.749 19.9218H128.052C128.972 19.9217 129.559 19.4587 129.812 18.5385C130.469 16.1519 131.231 13.5629 131.893 11.1818C131.96 10.9462 131.96 10.7798 131.893 10.6884C131.827 10.5997 131.674 10.5528 131.439 10.5528L128.298 10.536H127.996Z" fill="white"/>
+<path d="M146.865 5.79611C147.117 5.79618 147.269 6.00132 147.2 6.25629L147.097 6.54999L146.817 7.26517H146.878C147.735 6.51956 149.021 5.80724 150.177 5.80721H153.245C156.61 5.78781 157.689 7.93595 156.899 10.8243C155.829 14.7267 154.796 18.6059 153.728 22.4747L153.265 24.1321C153.198 24.3816 152.941 24.5842 152.691 24.5842H148.051C147.801 24.5842 147.655 24.3816 147.721 24.1321L151.23 11.1042C151.355 10.6469 151.258 10.4751 150.773 10.4751H146.063L142.238 24.1321C142.169 24.3816 141.911 24.5842 141.662 24.5842H137.021C136.772 24.5842 136.622 24.3816 136.692 24.1321L141.573 6.25629C141.639 6.00127 141.903 5.79611 142.155 5.79611H146.865Z" fill="white"/>
+<path d="M165.703 0.731207C165.823 0.299191 166.216 0 166.664 0H215.417C217.722 0 219.393 2.19567 218.779 4.41733L211.94 29.1683C211.821 29.6003 211.428 29.8995 210.98 29.8995H162.227C159.922 29.8995 158.25 27.7038 158.864 25.4822L165.703 0.731207Z" fill="#FF3E5A"/>
+<path d="M170.998 6.72729H179.736C181.164 6.72729 182.12 7.0499 182.608 7.69903C183.095 8.34816 183.15 9.33563 182.781 10.6614C182.537 11.5348 182.147 12.2469 181.612 12.7898C181.081 13.3367 180.507 13.7183 179.889 13.9386C180.979 14.2573 181.557 15.0441 181.628 16.2991C181.648 16.7515 181.573 17.2747 181.404 17.8727C181.002 19.3008 180.373 20.3473 179.515 21.0201C178.658 21.6889 177.513 22.0233 176.085 22.0233H166.69L170.99 6.73123L170.998 6.72729ZM177.662 17.2118C177.906 16.3384 177.595 15.9017 176.722 15.9017H172.351L171.49 18.9625H175.86C176.734 18.9625 177.292 18.5258 177.54 17.6524L177.662 17.2157V17.2118ZM178.724 11.0942C178.968 10.2208 178.658 9.78413 177.784 9.78413H174.07L173.209 12.841H176.923C177.796 12.841 178.355 12.4043 178.603 11.5309L178.724 11.0942Z" fill="white"/>
+<path d="M193.833 22.0193H182.206L186.506 6.72729H198.133L197.271 9.78413H189.575L188.745 12.7347H194.69L193.829 15.7916H187.883L186.994 18.9586H194.69L193.829 22.0154L193.833 22.0193Z" fill="white"/>
+<path d="M203.3 22.0193H199.366L202.808 9.78413H198.221L199.083 6.72729H212.191L211.33 9.78413H206.742L203.3 22.0193Z" fill="white"/>
+</svg></span>
+      <span id="logo-light" style="display:none"><svg width="160" height="22" viewBox="0 0 220 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M10.9465 5.8156C12.6845 5.8156 14.3865 5.82372 16.1522 5.82372C17.9179 5.82372 19.351 6.29228 19.9885 7.94434L20.4598 6.27849C20.5374 5.94136 20.7296 5.84387 20.9454 5.8248L21.0418 5.82941H26.2781C29.1248 5.82944 31.1705 8.14668 30.5053 10.949C30.4138 11.3371 30.3221 11.7502 30.2251 12.0911L26.8463 24.124C26.7742 24.3817 26.5109 24.5896 26.2532 24.5896H21.4798C21.222 24.5896 21.0724 24.3817 21.1417 24.124L24.734 11.1986C24.82 10.8826 24.9031 10.4946 24.407 10.4946H20.4652L16.6844 24.1267C16.6151 24.3817 16.3517 24.5896 16.0967 24.5896H11.3623C11.1073 24.5896 10.9576 24.3817 11.0269 24.1267L14.6082 11.1957C14.7024 10.8464 14.7524 10.4916 14.2812 10.4916H10.3174L6.53634 24.124C6.46701 24.379 6.20388 24.5868 5.94893 24.5869H1.21151C0.956595 24.5868 0.806897 24.379 0.876121 24.124L4.46309 11.1957C4.54901 10.8797 4.6321 10.4916 4.13609 10.4916C2.86935 10.4916 1.61636 10.4862 0.34962 10.4862C0.0973759 10.4862 -0.0523615 10.2809 0.0169363 10.0287L1.03691 6.2728C1.12283 5.91529 1.364 5.81563 1.6162 5.8156L6.00713 5.82372C7.72567 5.82651 9.31659 6.25349 9.88483 7.96924L10.3672 6.2728C10.4614 5.90697 10.6943 5.81562 10.9465 5.8156Z" fill="#FF3E5A"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M46.1942 5.7352C46.7984 5.7352 47.3197 5.84591 47.7604 6.04271C49.5039 6.8244 49.9999 8.97005 49.4317 11.0129L47.1892 19.0956L47.1865 19.104H47.17L45.809 24.1267C45.7397 24.3762 45.4818 24.5785 45.2324 24.5785H41.238C40.9858 24.5785 40.8085 24.4287 40.8279 24.1321L40.9137 22.7573C40.6559 23.0372 40.3206 23.3673 39.9187 23.6749C39.3781 24.063 38.4662 24.5896 37.7815 24.5896H33.9894C30.8045 24.609 29.4214 22.9209 30.5053 18.9543C30.702 18.2309 30.8932 17.5101 31.09 16.7812C31.7524 14.3169 33.8704 12.5318 36.476 12.5318H43.3835L43.7078 11.534C43.7827 11.1765 43.7659 10.8882 43.5941 10.6553C43.4223 10.4225 43.1617 10.2865 42.8097 10.3032C39.8715 10.4556 36.9969 10.4667 34.0449 10.6137C33.6181 10.633 33.693 10.3947 33.7955 10.0566L34.832 6.65259C34.9651 6.2174 35.0346 6.1399 35.8523 6.08169L42.039 5.88192C43.4249 5.83757 44.7777 5.73521 46.1942 5.7352ZM37.9756 16.5151C37.4212 16.5151 36.7724 16.7783 36.5285 17.4103L36.0131 19.2897C35.9493 19.5225 35.9493 19.686 36.0131 19.7775C36.0796 19.8662 36.2347 19.9134 36.4703 19.9134L41.4126 19.8579L41.5707 19.2732L42.3135 16.5124L37.9756 16.5151Z" fill="#FF3E5A"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M80.5742 5.7352C81.1785 5.73521 81.6995 5.84595 82.1402 6.04271C83.8838 6.82439 84.38 8.97004 83.8118 11.0129L81.5693 19.0956L81.5666 19.104H81.5498L80.1891 24.1267C80.1198 24.3762 79.8619 24.5785 79.6125 24.5785H75.6181C75.3659 24.5785 75.1883 24.4287 75.2077 24.1321L75.2938 22.7573C75.036 23.0372 74.7006 23.3673 74.2987 23.6749C73.7582 24.063 72.846 24.5896 72.1613 24.5896H68.1643C64.9794 24.609 63.5963 22.9209 64.6802 18.9543C64.877 18.2309 65.0681 17.5101 65.2649 16.7812C65.9273 14.3169 68.0453 12.5318 70.6509 12.5318H77.7636L78.0879 11.534C78.1628 11.1765 78.1432 10.8882 77.9742 10.6553C77.8052 10.4225 77.5418 10.2866 77.1898 10.3032C74.2515 10.4556 71.377 10.4667 68.4249 10.6137C67.9981 10.6331 68.0728 10.3947 68.1754 10.0566L69.2121 6.65259C69.3452 6.21742 69.4145 6.1399 70.2321 6.08169L76.4191 5.88192C77.805 5.83757 79.1578 5.7352 80.5742 5.7352ZM72.1532 16.5151C71.5989 16.5151 70.95 16.7783 70.7061 17.4103L70.1907 19.2897C70.1269 19.5225 70.127 19.686 70.1907 19.7775C70.2572 19.8662 70.4123 19.9134 70.6479 19.9134L75.7954 19.8579L75.9535 19.2732L76.6963 16.5124L72.1532 16.5151Z" fill="#FF3E5A"/>
+<path d="M109.726 0C110.164 0.0110948 110.045 0.532102 109.959 0.753884L108.105 7.26517H108.166C109.022 6.51956 109.28 5.80725 110.436 5.80721H114.325C117.69 5.78781 118.768 7.93594 117.978 10.8243C116.909 14.7267 115.875 18.6059 114.807 22.4747L114.347 24.1351C114.281 24.3846 114.023 24.5869 113.773 24.5869H109.133C108.884 24.5869 108.737 24.3846 108.803 24.1351L112.313 11.1071C112.437 10.6498 112.34 10.4778 111.855 10.4778H107.351L103.526 24.1351C103.456 24.3846 103.198 24.5869 102.949 24.5869H98.3088C98.0566 24.5869 97.9099 24.3845 97.9791 24.1351L104.435 0.460181C104.501 0.205181 104.765 2.66533e-05 105.017 0H109.726Z" fill="#FF3E5A"/>
+<path d="M66.6067 5.73791C66.7619 5.7379 67.0612 5.72691 66.9532 6.13421L65.7445 10.5888C65.5533 11.2845 65.5033 11.2346 65.0294 11.2262C62.2159 11.2262 60.5858 11.1487 57.8167 12.2297C56.8382 15.786 55.5744 20.3901 54.5267 24.1321C54.4574 24.3816 54.1995 24.5842 53.9501 24.5842H49.3099C49.0604 24.5842 48.9106 24.3816 48.9799 24.1321L53.8613 6.25629C53.9278 6.00131 54.1911 5.79617 54.4433 5.79611H59.1528C59.4051 5.79611 59.5575 6.00127 59.4882 6.25629L59.3886 6.5527C59.3692 6.6026 59.2223 7.12389 58.9866 7.97764C59.9762 7.32902 60.9435 6.82168 61.8888 6.45579C63.1195 5.97625 64.3142 5.73791 65.4673 5.73791H66.6067Z" fill="#FF3E5A"/>
+<path d="M94.8136 1.77955C95.0658 1.77958 95.2156 1.9848 95.1463 2.23702L94.165 5.8045L93.7381 7.27356C94.298 6.7663 94.9965 5.9542 96.1801 5.8045H99.5396C99.7919 5.80451 99.9416 6.00949 99.8723 6.2617L98.8551 10.0149C98.7885 10.2671 98.528 10.4723 98.2758 10.4724H92.9009L90.4727 19.2813C90.4062 19.5169 90.4062 19.6806 90.4727 19.7721C90.5393 19.8635 90.6917 19.9079 90.9272 19.908H96.0109C96.2631 19.908 96.4128 20.1129 96.3436 20.3652L95.7421 22.6022C95.6977 22.7657 95.5729 22.91 95.4205 22.9904L93.0091 24.4927C92.9121 24.5537 92.8067 24.5842 92.7125 24.5842H89.3889C85.4251 24.5842 83.9838 22.6022 85.0648 18.6357L89.5551 2.23702C89.6216 1.98478 89.8824 1.77955 90.1346 1.77955H94.8136Z" fill="#FF3E5A"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M133.726 5.87082C137.091 5.85143 138.161 8.00808 137.354 10.9019L135.081 19.0542C134.599 20.7783 133.739 22.1364 132.495 23.1149C131.25 24.0933 129.762 24.5842 128.041 24.5842H122.319C118.954 24.6036 117.884 22.4469 118.691 19.5531L120.966 11.4008C121.446 9.67674 122.305 8.31863 123.55 7.34015C124.795 6.36167 126.283 5.87082 128.005 5.87082H133.726ZM127.996 10.536C127.079 10.536 126.491 10.9989 126.236 11.9192C125.579 14.3058 124.817 16.8948 124.154 19.2759C124.088 19.5143 124.088 19.6779 124.154 19.7694C124.221 19.8608 124.373 19.905 124.609 19.905L127.749 19.9218H128.052C128.972 19.9217 129.559 19.4587 129.812 18.5385C130.469 16.1519 131.231 13.5629 131.893 11.1818C131.96 10.9462 131.96 10.7798 131.893 10.6884C131.827 10.5997 131.674 10.5528 131.439 10.5528L128.298 10.536H127.996Z" fill="#FF3E5A"/>
+<path d="M146.865 5.79611C147.117 5.79618 147.269 6.00132 147.2 6.25629L147.097 6.54999L146.817 7.26517H146.878C147.735 6.51956 149.021 5.80724 150.177 5.80721H153.245C156.61 5.78781 157.689 7.93595 156.899 10.8243C155.829 14.7267 154.796 18.6059 153.728 22.4747L153.265 24.1321C153.198 24.3816 152.941 24.5842 152.691 24.5842H148.051C147.801 24.5842 147.655 24.3816 147.721 24.1321L151.23 11.1042C151.355 10.6469 151.258 10.4751 150.773 10.4751H146.063L142.238 24.1321C142.169 24.3816 141.911 24.5842 141.662 24.5842H137.021C136.772 24.5842 136.622 24.3816 136.692 24.1321L141.573 6.25629C141.639 6.00127 141.903 5.79611 142.155 5.79611H146.865Z" fill="#FF3E5A"/>
+<path d="M165.703 0.731207C165.823 0.299191 166.216 0 166.664 0H215.417C217.722 0 219.393 2.19567 218.779 4.41733L211.94 29.1683C211.821 29.6003 211.428 29.8995 210.98 29.8995H162.227C159.922 29.8995 158.25 27.7038 158.864 25.4822L165.703 0.731207Z" fill="#FF3E5A"/>
+<path d="M170.998 6.72729H179.736C181.164 6.72729 182.12 7.0499 182.608 7.69903C183.095 8.34816 183.15 9.33563 182.781 10.6614C182.537 11.5348 182.147 12.2469 181.612 12.7898C181.081 13.3367 180.507 13.7183 179.889 13.9386C180.979 14.2573 181.557 15.0441 181.628 16.2991C181.648 16.7515 181.573 17.2747 181.404 17.8727C181.002 19.3008 180.373 20.3473 179.515 21.0201C178.658 21.6889 177.513 22.0233 176.085 22.0233H166.69L170.99 6.73123L170.998 6.72729ZM177.662 17.2118C177.906 16.3384 177.595 15.9017 176.722 15.9017H172.351L171.49 18.9625H175.86C176.734 18.9625 177.292 18.5258 177.54 17.6524L177.662 17.2157V17.2118ZM178.724 11.0942C178.968 10.2208 178.658 9.78413 177.784 9.78413H174.07L173.209 12.841H176.923C177.796 12.841 178.355 12.4043 178.603 11.5309L178.724 11.0942Z" fill="white"/>
+<path d="M193.833 22.0193H182.206L186.506 6.72729H198.133L197.271 9.78413H189.575L188.745 12.7347H194.69L193.829 15.7916H187.883L186.994 18.9586H194.69L193.829 22.0154L193.833 22.0193Z" fill="white"/>
+<path d="M203.3 22.0193H199.366L202.808 9.78413H198.221L199.083 6.72729H212.191L211.33 9.78413H206.742L203.3 22.0193Z" fill="white"/>
+</svg></span>
+    </a>
+      <span class="header-title">Affiliate Performance Tracker</span>
+    </div>
+    <div class="header-right">
+      <div class="live-pill"><span class="live-dot"></span> ADM • Italia</div>
+      <button class="header-btn theme-toggle-btn" onclick="toggleTheme()" id="theme-btn" title="Cambia tema">
+        <span id="theme-icon">☀️</span> Light
+      </button>
+      <button class="header-btn" onclick="exportCSV()">⬇ Esporta CSV</button>
+    </div>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('overview',this)">📊 Overview</button>
+  <button class="tab" onclick="switchTab('affiliati',this)">👥 Affiliati</button>
+  <button class="tab" onclick="switchTab('categorie',this)">🎰 Categorie</button>
+  <button class="tab" onclick="switchTab('trend',this)">📈 Grafico affiliati</button>
+  <button class="tab" onclick="switchTab('upload',this)">⬆ Carica dati <span class="tab-count" id="months-badge">0</span></button>
+</div>
+
+<div class="page">
+
+  <!-- OVERVIEW -->
+  <div id="tab-overview" class="panel active">
+    <div id="pills-overview" class="month-pills"></div>
+    <div id="kpi-overview" class="kpi-grid"></div>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-card-title">Top 5 affiliati per GGR</div>
+        <div style="position:relative;height:220px"><canvas id="chart-top5" role="img" aria-label="Top 5 affiliati GGR"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-title">Mix GGR per categoria</div>
+        <div style="position:relative;height:220px"><canvas id="chart-mix" role="img" aria-label="Mix GGR per categoria"></canvas></div>
+      </div>
+    </div>
+    <div class="section-label">Ranking affiliati — mese selezionato</div>
+    <div class="table-wrap"><div id="tbl-overview"></div></div>
+  </div>
+
+  <!-- AFFILIATI -->
+  <div id="tab-affiliati" class="panel">
+    <div class="table-wrap">
+      <div class="table-toolbar">
+        <div class="table-toolbar-left">
+          <select class="tbl-select" id="aff-month-sel" onchange="renderAffiliati()">
+            <option value="">Tutti i mesi</option>
+          </select>
+          <select class="tbl-select" id="aff-net-sel" onchange="renderAffiliati()">
+            <option value="">Tutte le reti</option>
+          </select>
+          <input class="tbl-search" id="aff-search" placeholder="🔍 Cerca affiliato..." oninput="renderAffiliati()">
+        </div>
+        <button class="export-btn" onclick="exportCSV()">⬇ CSV</button>
+      </div>
+      <div id="tbl-affiliati"></div>
+    </div>
+  </div>
+
+  <!-- CATEGORIE -->
+  <div id="tab-categorie" class="panel">
+    <div id="pills-cat" class="month-pills"></div>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-card-title">GGR per categoria</div>
+        <div style="position:relative;height:260px"><canvas id="chart-cat-bar" role="img" aria-label="GGR per categoria"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-title">Payout % medio per categoria</div>
+        <div style="position:relative;height:260px"><canvas id="chart-cat-payout" role="img" aria-label="Payout percentuale per categoria"></canvas></div>
+      </div>
+    </div>
+    <div class="table-wrap"><div id="tbl-cat"></div></div>
+  </div>
+
+  <!-- GRAFICO AFFILIATI -->
+  <div id="tab-trend" class="panel">
+
+    <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:16px">
+      <div style="font-size:10px;font-weight:700;color:var(--slate3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px">Filtri</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+        <div><label class="field-label">Da mese</label>
+          <select class="tbl-select" id="g-from" onchange="renderGrafico()"><option value="">Inizio</option></select></div>
+        <div><label class="field-label">A mese</label>
+          <select class="tbl-select" id="g-to" onchange="renderGrafico()"><option value="">Fine</option></select></div>
+        <div><label class="field-label">Prodotto</label>
+          <select class="tbl-select" id="g-cat" onchange="renderGrafico()"><option value="">Tutti i prodotti</option></select></div>
+        <div><label class="field-label">Cerca affiliato</label>
+          <input class="tbl-search" id="g-search" placeholder="Codice o ragione sociale..." oninput="renderGrafico()" style="width:220px"></div>
+        <div><label class="field-label">Top N</label>
+          <select class="tbl-select" id="g-topn" onchange="renderGrafico()">
+            <option value="0">Tutti</option>
+            <option value="10" selected>Top 10</option>
+            <option value="20">Top 20</option>
+            <option value="5">Top 5</option>
+          </select></div>
+        <div><label class="field-label">Soglia minima rake (mese iniziale)</label>
+          <input type="number" class="tbl-search" id="g-min-first" placeholder="es. 500" oninput="renderGrafico()" style="width:140px;text-align:right" min="0" step="100"></div>
+        <div><label class="field-label">Soglia minima rake (mese finale)</label>
+          <input type="number" class="tbl-search" id="g-min-last" placeholder="es. 500" oninput="renderGrafico()" style="width:140px;text-align:right" min="0" step="100"></div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <div style="padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div style="font-size:11px;font-weight:700;color:var(--slate3);letter-spacing:.08em;text-transform:uppercase" id="g-pivot-title">Performance mensile affiliati</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span style="font-size:11px;color:var(--slate3);margin-right:2px">Mostra:</span>
+          <button id="g-show-rake" onclick="setMetricView('rake')" class="metric-toggle active">Rake</button>
+          <button id="g-show-turnover" onclick="setMetricView('turnover')" class="metric-toggle">Turnover</button>
+          <button id="g-show-both" onclick="setMetricView('both')" class="metric-toggle">Entrambi</button>
+        </div>
+      </div>
+      <div id="g-pivot" style="overflow-x:auto"></div>
+    </div>
+
+  </div>
+
+    <!-- UPLOAD -->
+  <div id="tab-upload" class="panel">
+    <div class="upload-zone" onclick="document.getElementById('file-input').click()">
+      <input type="file" id="file-input" accept=".xlsx,.xls,.csv" onchange="handleFile(event)">
+      <div class="upload-icon">📂</div>
+      <div class="upload-title">Carica export mensile</div>
+      <div class="upload-sub">Trascina qui il file .xlsx o .csv (formato export_grid_stat_all)</div>
+    </div>
+    <div class="upload-row">
+      <div>
+        <label class="field-label">Mese di riferimento</label>
+        <input type="month" id="month-input" class="field-input">
+      </div>
+      <div>
+        <label class="field-label">Tipo periodo</label>
+        <select id="period-input" class="field-input">
+          <option value="mensile">Mensile</option>
+          <option value="settimanale">Settimanale</option>
+        </select>
+      </div>
+    </div>
+    <div id="preview-zone" style="display:none;margin-bottom:20px">
+      <div class="section-label">Anteprima dati</div>
+      <div id="preview-content" class="preview-box"></div>
+      <div id="preview-table-wrap" class="table-wrap" style="margin-bottom:16px"></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn-confirm" onclick="confirmUpload()">✓ Conferma e salva</button>
+        <button class="btn-cancel" onclick="cancelUpload()">Annulla</button>
+      </div>
+    </div>
+    <div id="months-list-section">
+      <div class="section-label">Mesi caricati</div>
+      <div class="table-wrap"><div id="months-list-body"></div></div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <div style="display:flex;align-items:center"><svg width="120" height="16" viewBox="0 0 220 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M10.9465 5.8156C12.6845 5.8156 14.3865 5.82372 16.1522 5.82372C17.9179 5.82372 19.351 6.29228 19.9885 7.94434L20.4598 6.27849C20.5374 5.94136 20.7296 5.84387 20.9454 5.8248L21.0418 5.82941H26.2781C29.1248 5.82944 31.1705 8.14668 30.5053 10.949C30.4138 11.3371 30.3221 11.7502 30.2251 12.0911L26.8463 24.124C26.7742 24.3817 26.5109 24.5896 26.2532 24.5896H21.4798C21.222 24.5896 21.0724 24.3817 21.1417 24.124L24.734 11.1986C24.82 10.8826 24.9031 10.4946 24.407 10.4946H20.4652L16.6844 24.1267C16.6151 24.3817 16.3517 24.5896 16.0967 24.5896H11.3623C11.1073 24.5896 10.9576 24.3817 11.0269 24.1267L14.6082 11.1957C14.7024 10.8464 14.7524 10.4916 14.2812 10.4916H10.3174L6.53634 24.124C6.46701 24.379 6.20388 24.5868 5.94893 24.5869H1.21151C0.956595 24.5868 0.806897 24.379 0.876121 24.124L4.46309 11.1957C4.54901 10.8797 4.6321 10.4916 4.13609 10.4916C2.86935 10.4916 1.61636 10.4862 0.34962 10.4862C0.0973759 10.4862 -0.0523615 10.2809 0.0169363 10.0287L1.03691 6.2728C1.12283 5.91529 1.364 5.81563 1.6162 5.8156L6.00713 5.82372C7.72567 5.82651 9.31659 6.25349 9.88483 7.96924L10.3672 6.2728C10.4614 5.90697 10.6943 5.81562 10.9465 5.8156Z" fill="white"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M46.1942 5.7352C46.7984 5.7352 47.3197 5.84591 47.7604 6.04271C49.5039 6.8244 49.9999 8.97005 49.4317 11.0129L47.1892 19.0956L47.1865 19.104H47.17L45.809 24.1267C45.7397 24.3762 45.4818 24.5785 45.2324 24.5785H41.238C40.9858 24.5785 40.8085 24.4287 40.8279 24.1321L40.9137 22.7573C40.6559 23.0372 40.3206 23.3673 39.9187 23.6749C39.3781 24.063 38.4662 24.5896 37.7815 24.5896H33.9894C30.8045 24.609 29.4214 22.9209 30.5053 18.9543C30.702 18.2309 30.8932 17.5101 31.09 16.7812C31.7524 14.3169 33.8704 12.5318 36.476 12.5318H43.3835L43.7078 11.534C43.7827 11.1765 43.7659 10.8882 43.5941 10.6553C43.4223 10.4225 43.1617 10.2865 42.8097 10.3032C39.8715 10.4556 36.9969 10.4667 34.0449 10.6137C33.6181 10.633 33.693 10.3947 33.7955 10.0566L34.832 6.65259C34.9651 6.2174 35.0346 6.1399 35.8523 6.08169L42.039 5.88192C43.4249 5.83757 44.7777 5.73521 46.1942 5.7352ZM37.9756 16.5151C37.4212 16.5151 36.7724 16.7783 36.5285 17.4103L36.0131 19.2897C35.9493 19.5225 35.9493 19.686 36.0131 19.7775C36.0796 19.8662 36.2347 19.9134 36.4703 19.9134L41.4126 19.8579L41.5707 19.2732L42.3135 16.5124L37.9756 16.5151Z" fill="white"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M80.5742 5.7352C81.1785 5.73521 81.6995 5.84595 82.1402 6.04271C83.8838 6.82439 84.38 8.97004 83.8118 11.0129L81.5693 19.0956L81.5666 19.104H81.5498L80.1891 24.1267C80.1198 24.3762 79.8619 24.5785 79.6125 24.5785H75.6181C75.3659 24.5785 75.1883 24.4287 75.2077 24.1321L75.2938 22.7573C75.036 23.0372 74.7006 23.3673 74.2987 23.6749C73.7582 24.063 72.846 24.5896 72.1613 24.5896H68.1643C64.9794 24.609 63.5963 22.9209 64.6802 18.9543C64.877 18.2309 65.0681 17.5101 65.2649 16.7812C65.9273 14.3169 68.0453 12.5318 70.6509 12.5318H77.7636L78.0879 11.534C78.1628 11.1765 78.1432 10.8882 77.9742 10.6553C77.8052 10.4225 77.5418 10.2866 77.1898 10.3032C74.2515 10.4556 71.377 10.4667 68.4249 10.6137C67.9981 10.6331 68.0728 10.3947 68.1754 10.0566L69.2121 6.65259C69.3452 6.21742 69.4145 6.1399 70.2321 6.08169L76.4191 5.88192C77.805 5.83757 79.1578 5.7352 80.5742 5.7352ZM72.1532 16.5151C71.5989 16.5151 70.95 16.7783 70.7061 17.4103L70.1907 19.2897C70.1269 19.5225 70.127 19.686 70.1907 19.7775C70.2572 19.8662 70.4123 19.9134 70.6479 19.9134L75.7954 19.8579L75.9535 19.2732L76.6963 16.5124L72.1532 16.5151Z" fill="white"/>
+<path d="M109.726 0C110.164 0.0110948 110.045 0.532102 109.959 0.753884L108.105 7.26517H108.166C109.022 6.51956 109.28 5.80725 110.436 5.80721H114.325C117.69 5.78781 118.768 7.93594 117.978 10.8243C116.909 14.7267 115.875 18.6059 114.807 22.4747L114.347 24.1351C114.281 24.3846 114.023 24.5869 113.773 24.5869H109.133C108.884 24.5869 108.737 24.3846 108.803 24.1351L112.313 11.1071C112.437 10.6498 112.34 10.4778 111.855 10.4778H107.351L103.526 24.1351C103.456 24.3846 103.198 24.5869 102.949 24.5869H98.3088C98.0566 24.5869 97.9099 24.3845 97.9791 24.1351L104.435 0.460181C104.501 0.205181 104.765 2.66533e-05 105.017 0H109.726Z" fill="white"/>
+<path d="M66.6067 5.73791C66.7619 5.7379 67.0612 5.72691 66.9532 6.13421L65.7445 10.5888C65.5533 11.2845 65.5033 11.2346 65.0294 11.2262C62.2159 11.2262 60.5858 11.1487 57.8167 12.2297C56.8382 15.786 55.5744 20.3901 54.5267 24.1321C54.4574 24.3816 54.1995 24.5842 53.9501 24.5842H49.3099C49.0604 24.5842 48.9106 24.3816 48.9799 24.1321L53.8613 6.25629C53.9278 6.00131 54.1911 5.79617 54.4433 5.79611H59.1528C59.4051 5.79611 59.5575 6.00127 59.4882 6.25629L59.3886 6.5527C59.3692 6.6026 59.2223 7.12389 58.9866 7.97764C59.9762 7.32902 60.9435 6.82168 61.8888 6.45579C63.1195 5.97625 64.3142 5.73791 65.4673 5.73791H66.6067Z" fill="white"/>
+<path d="M94.8136 1.77955C95.0658 1.77958 95.2156 1.9848 95.1463 2.23702L94.165 5.8045L93.7381 7.27356C94.298 6.7663 94.9965 5.9542 96.1801 5.8045H99.5396C99.7919 5.80451 99.9416 6.00949 99.8723 6.2617L98.8551 10.0149C98.7885 10.2671 98.528 10.4723 98.2758 10.4724H92.9009L90.4727 19.2813C90.4062 19.5169 90.4062 19.6806 90.4727 19.7721C90.5393 19.8635 90.6917 19.9079 90.9272 19.908H96.0109C96.2631 19.908 96.4128 20.1129 96.3436 20.3652L95.7421 22.6022C95.6977 22.7657 95.5729 22.91 95.4205 22.9904L93.0091 24.4927C92.9121 24.5537 92.8067 24.5842 92.7125 24.5842H89.3889C85.4251 24.5842 83.9838 22.6022 85.0648 18.6357L89.5551 2.23702C89.6216 1.98478 89.8824 1.77955 90.1346 1.77955H94.8136Z" fill="white"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M133.726 5.87082C137.091 5.85143 138.161 8.00808 137.354 10.9019L135.081 19.0542C134.599 20.7783 133.739 22.1364 132.495 23.1149C131.25 24.0933 129.762 24.5842 128.041 24.5842H122.319C118.954 24.6036 117.884 22.4469 118.691 19.5531L120.966 11.4008C121.446 9.67674 122.305 8.31863 123.55 7.34015C124.795 6.36167 126.283 5.87082 128.005 5.87082H133.726ZM127.996 10.536C127.079 10.536 126.491 10.9989 126.236 11.9192C125.579 14.3058 124.817 16.8948 124.154 19.2759C124.088 19.5143 124.088 19.6779 124.154 19.7694C124.221 19.8608 124.373 19.905 124.609 19.905L127.749 19.9218H128.052C128.972 19.9217 129.559 19.4587 129.812 18.5385C130.469 16.1519 131.231 13.5629 131.893 11.1818C131.96 10.9462 131.96 10.7798 131.893 10.6884C131.827 10.5997 131.674 10.5528 131.439 10.5528L128.298 10.536H127.996Z" fill="white"/>
+<path d="M146.865 5.79611C147.117 5.79618 147.269 6.00132 147.2 6.25629L147.097 6.54999L146.817 7.26517H146.878C147.735 6.51956 149.021 5.80724 150.177 5.80721H153.245C156.61 5.78781 157.689 7.93595 156.899 10.8243C155.829 14.7267 154.796 18.6059 153.728 22.4747L153.265 24.1321C153.198 24.3816 152.941 24.5842 152.691 24.5842H148.051C147.801 24.5842 147.655 24.3816 147.721 24.1321L151.23 11.1042C151.355 10.6469 151.258 10.4751 150.773 10.4751H146.063L142.238 24.1321C142.169 24.3816 141.911 24.5842 141.662 24.5842H137.021C136.772 24.5842 136.622 24.3816 136.692 24.1321L141.573 6.25629C141.639 6.00127 141.903 5.79611 142.155 5.79611H146.865Z" fill="white"/>
+<path d="M165.703 0.731207C165.823 0.299191 166.216 0 166.664 0H215.417C217.722 0 219.393 2.19567 218.779 4.41733L211.94 29.1683C211.821 29.6003 211.428 29.8995 210.98 29.8995H162.227C159.922 29.8995 158.25 27.7038 158.864 25.4822L165.703 0.731207Z" fill="#FF3E5A"/>
+<path d="M170.998 6.72729H179.736C181.164 6.72729 182.12 7.0499 182.608 7.69903C183.095 8.34816 183.15 9.33563 182.781 10.6614C182.537 11.5348 182.147 12.2469 181.612 12.7898C181.081 13.3367 180.507 13.7183 179.889 13.9386C180.979 14.2573 181.557 15.0441 181.628 16.2991C181.648 16.7515 181.573 17.2747 181.404 17.8727C181.002 19.3008 180.373 20.3473 179.515 21.0201C178.658 21.6889 177.513 22.0233 176.085 22.0233H166.69L170.99 6.73123L170.998 6.72729ZM177.662 17.2118C177.906 16.3384 177.595 15.9017 176.722 15.9017H172.351L171.49 18.9625H175.86C176.734 18.9625 177.292 18.5258 177.54 17.6524L177.662 17.2157V17.2118ZM178.724 11.0942C178.968 10.2208 178.658 9.78413 177.784 9.78413H174.07L173.209 12.841H176.923C177.796 12.841 178.355 12.4043 178.603 11.5309L178.724 11.0942Z" fill="white"/>
+<path d="M193.833 22.0193H182.206L186.506 6.72729H198.133L197.271 9.78413H189.575L188.745 12.7347H194.69L193.829 15.7916H187.883L186.994 18.9586H194.69L193.829 22.0154L193.833 22.0193Z" fill="white"/>
+<path d="M203.3 22.0193H199.366L202.808 9.78413H198.221L199.083 6.72729H212.191L211.33 9.78413H206.742L203.3 22.0193Z" fill="white"/>
+</svg></div>
+  <div class="footer-info">Affiliate Performance Tracker — uso interno</div>
+  <div class="footer-adm">🔒 ADM concessione</div>
+</footer>
+
+
+<script>
+
+/* ════════════════════════════════════════════════════
+   FIREBASE CONFIGURATION
+   Sostituisci con i valori dal tuo progetto Firebase
+   Console → Project Settings → Your apps → Config
+   ════════════════════════════════════════════════════ */
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyBX4sOy3B-x8u45xSINrFzpauZjSXQ0f6k",
+  authDomain:        "affiliates-tracker-8cd32.firebaseapp.com",
+  projectId:         "affiliates-tracker-8cd32",
+  storageBucket:     "affiliates-tracker-8cd32.firebasestorage.app",
+  messagingSenderId: "1050592939048",
+  appId:             "1:1050592939048:web:fee1063acb250f41dab91d"
+};
+
+/* ── Firebase instances ── */
+let fbApp  = null;
+let fbAuth = null;
+let fbDb   = null;
+let currentUser = null;
+
+function initFirebase(){
+  if(!window.firebase){ console.warn('Firebase SDK not loaded'); return false; }
+  if(!fbApp) fbApp = firebase.initializeApp(FIREBASE_CONFIG);
+  fbAuth = firebase.auth();
+  fbDb   = firebase.firestore();
+  return true;
+}
+
+/* ── SYNC STATUS UI ── */
+function setSyncStatus(state){
+  const dot = document.getElementById('sync-dot');
+  const txt = document.getElementById('sync-txt');
+  if(!dot||!txt) return;
+  dot.className = 'sync-dot' + (state==='syncing'?' syncing':state==='error'?' error':'');
+  txt.textContent = state==='syncing'?'Sincronizzazione...' : state==='error'?'Errore sync' : 'Sincronizzato';
+}
+
+/* ── TOAST ── */
+function showToast(msg, type='success'){
+  let t = document.getElementById('toast');
+  if(!t){
+    t = document.createElement('div');
+    t.id = 'toast';
+    document.body.appendChild(t);
+    t.style.cssText = 'position:fixed;bottom:24px;right:24px;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;font-family:Inter,sans-serif;z-index:9999;transition:opacity .3s;pointer-events:none';
+  }
+  t.textContent = msg;
+  t.style.background = type==='error'?'#7f1d1d':type==='warning'?'#78350f':'#14532d';
+  t.style.color      = type==='error'?'#fca5a5':type==='warning'?'#fcd34d':'#86efac';
+  t.style.border     = `1px solid ${type==='error'?'rgba(248,113,113,.3)':type==='warning'?'rgba(252,211,77,.3)':'rgba(134,239,172,.3)'}`;
+  t.style.opacity    = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>{ t.style.opacity='0'; }, 3000);
+}
+
+/* ── LOGIN ── */
+async function doLogin(){
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-password').value;
+  const btn   = document.getElementById('login-btn');
+  const errEl = document.getElementById('login-error');
+  if(!email||!pass){ errEl.textContent='Inserisci email e password'; return; }
+  btn.disabled = true;
+  btn.innerHTML = '<span class="login-spinner"></span>Accesso in corso...';
+  errEl.textContent = '';
+  try{
+    const cred = await fbAuth.signInWithEmailAndPassword(email, pass);
+    /* onLoginSuccess called by auth state listener */
+  }catch(e){
+    const msg = e.code==='auth/invalid-credential'||e.code==='auth/wrong-password'||e.code==='auth/user-not-found'
+      ? 'Credenziali non valide'
+      : e.code==='auth/too-many-requests'
+      ? 'Troppi tentativi. Riprova tra qualche minuto.'
+      : e.message;
+    errEl.textContent = msg;
+    btn.disabled = false;
+    btn.textContent = 'Accedi';
+  }
+}
+
+document.addEventListener('keydown', e=>{
+  if(e.key==='Enter' && document.getElementById('login-screen').style.display!=='none') doLogin();
+});
+
+function onLoginSuccess(user){
+  currentUser = user;
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  const up = document.getElementById('user-pill-email');
+  if(up) up.textContent = user.email;
+  appInit();
+}
+
+async function doLogout(){
+  await fbAuth.signOut();
+  currentUser = null;
+  db = {};
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-password').value = '';
+  document.getElementById('login-error').textContent = '';
+}
+
+/* ── FIRESTORE DATA LAYER ──
+   Collection: "uploads"
+   Document ID: "{userId}_{monthKey}"   e.g. "uid123_2026-01"
+   Fields: userId, monthKey, data (array), updatedAt
+── */
+
+async function syncToSupabase(){ /* alias kept for compatibility */
+  return syncToFirestore();
+}
+
+async function syncToFirestore(){
+  if(!fbDb||!currentUser){ return; }
+  setSyncStatus('syncing');
+  try{
+    const batch = fbDb.batch();
+    Object.entries(db).forEach(([monthKey, rows])=>{
+      const docId  = currentUser.uid + '_' + monthKey;
+      const docRef = fbDb.collection('uploads').doc(docId);
+      batch.set(docRef, {
+        userId:    currentUser.uid,
+        monthKey,
+        data:      rows,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+    await batch.commit();
+    setSyncStatus('ok');
+  }catch(e){
+    setSyncStatus('error');
+    console.error('Firestore sync error:', e);
+    showToast('Errore sincronizzazione cloud', 'error');
+  }
+}
+
+async function loadFromSupabase(){ /* alias kept for compatibility */
+  return loadFromFirestore();
+}
+
+async function loadFromFirestore(){
+  if(!fbDb||!currentUser){ return; }
+  setSyncStatus('syncing');
+  try{
+    const snap = await fbDb.collection('uploads')
+      .where('userId','==', currentUser.uid)
+      .orderBy('monthKey','asc')
+      .get();
+    if(!snap.empty){
+      snap.forEach(doc=>{
+        const {monthKey, data} = doc.data();
+        if(monthKey && data) db[normalizeKey(monthKey)] = data;
+      });
+      try{ localStorage.setItem('mbt_aff_db', JSON.stringify(db)); }catch(e){}
+      updateBadge();
+      renderOverview();
+      renderMonthsList();
+    }
+    setSyncStatus('ok');
+  }catch(e){
+    setSyncStatus('error');
+    console.error('Firestore load error:', e);
+  }
+}
+
+async function deleteMonthFromSupabase(monthKey){ /* alias kept */
+  return deleteMonthFromFirestore(monthKey);
+}
+
+async function deleteMonthFromFirestore(monthKey){
+  if(!fbDb||!currentUser) return;
+  try{
+    const docId = currentUser.uid + '_' + monthKey;
+    await fbDb.collection('uploads').doc(docId).delete();
+  }catch(e){ console.error('Firestore delete error:', e); }
+}
+
+/* ── AUTH STATE LISTENER & INIT ── */
+async function checkSession(){
+  const ok = initFirebase();
+  if(!ok || FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY'){
+    /* Firebase not configured: run offline with localStorage only */
+    console.warn('Firebase not configured — running in offline/local mode');
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    appInit();
+    return;
+  }
+  /* Listen for auth state: fires immediately with current session or null */
+  fbAuth.onAuthStateChanged(user=>{
+    if(user){
+      onLoginSuccess(user);
+    } else {
+      /* No session — show login */
+      document.getElementById('login-screen').style.display = 'flex';
+      document.getElementById('app').style.display = 'none';
+    }
+  });
+}
+
+/* Start */
+checkSession();
+</script>
+</body>
+</html>
