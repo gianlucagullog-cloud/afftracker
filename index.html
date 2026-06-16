@@ -532,7 +532,8 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
 let db={};
 let pendingData=null;
 let selOvMonth=null,selCatMonth=null;
-let selOvMonths=new Set(); /* multi-select for overview */
+let selOvMonths=new Set();   /* multi-select for overview */
+let selCatMonths=new Set();  /* multi-select for categorie */
 
 function onOvRangeChange(){
   const ms=months();
@@ -934,6 +935,25 @@ function renderCategorie(){
   </tbody></table>`;
 }
 
+
+function populateTrendFilters(){
+  const ms=months();
+  ['g-from','g-to'].forEach(function(id){
+    const sel=document.getElementById(id);
+    if(!sel) return;
+    const cur=sel.value;
+    while(sel.options.length>1) sel.remove(1);
+    ms.forEach(function(m){sel.add(new Option(ml(m),m));});
+    if(cur&&ms.includes(cur)) sel.value=cur;
+  });
+  const cats=[...new Set(ms.flatMap(function(m){return (db[m]||[]).map(function(r){return r.cat;});}))].sort();
+  const cSel=document.getElementById('g-cat');
+  if(!cSel) return;
+  const curC=cSel.value;
+  while(cSel.options.length>1) cSel.remove(1);
+  cats.forEach(function(ct){cSel.add(new Option(ct,ct));});
+  if(curC&&cats.includes(curC)) cSel.value=curC;
+}
 function renderTrend(){populateTrendFilters();renderGrafico();}
 
 /* ── metric view state ── */
