@@ -357,7 +357,7 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
   <button class="tab active" onclick="switchTab('overview',this)">📊 Overview</button>
   <button class="tab" onclick="switchTab('affiliati',this)">👥 Affiliati</button>
   <button class="tab" onclick="switchTab('categorie',this)">🎰 Categorie</button>
-  <button class="tab" onclick="switchTab('trend',this)">📈 Grafico affiliati</button>
+  <button class="tab" onclick="switchTab('trend',this)">📈 Performance</button>
   <button class="tab" onclick="switchTab('upload',this)">⬆ Carica dati <span class="tab-count" id="months-badge">0</span></button>
 </div>
 
@@ -479,8 +479,9 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
         <div style="display:flex;gap:6px;align-items:center">
           <span style="font-size:11px;color:var(--slate3);margin-right:2px">Mostra:</span>
           <button id="g-show-rake" onclick="setMetricView('rake')" class="metric-toggle active">Rake</button>
-          <button id="g-show-turnover" onclick="setMetricView('turnover')" class="metric-toggle">Turnover</button>
-          <button id="g-show-both" onclick="setMetricView('both')" class="metric-toggle">Entrambi</button>
+          <button id="g-show-turnover" onclick="setMetricView('turnover')" class="metric-toggle">Giocato</button>
+          <button id="g-show-both" onclick="setMetricView('both')" class="metric-toggle">Rake + Giocato</button>
+          <button id="g-show-conti" onclick="setMetricView('conti')" class="metric-toggle">Conti attivi</button>
         </div>
       </div>
       <div id="g-pivot" style="overflow-x:auto"></div>
@@ -551,8 +552,7 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
 <path fill-rule="evenodd" clip-rule="evenodd" d="M133.726 5.87082C137.091 5.85143 138.161 8.00808 137.354 10.9019L135.081 19.0542C134.599 20.7783 133.739 22.1364 132.495 23.1149C131.25 24.0933 129.762 24.5842 128.041 24.5842H122.319C118.954 24.6036 117.884 22.4469 118.691 19.5531L120.966 11.4008C121.446 9.67674 122.305 8.31863 123.55 7.34015C124.795 6.36167 126.283 5.87082 128.005 5.87082H133.726ZM127.996 10.536C127.079 10.536 126.491 10.9989 126.236 11.9192C125.579 14.3058 124.817 16.8948 124.154 19.2759C124.088 19.5143 124.088 19.6779 124.154 19.7694C124.221 19.8608 124.373 19.905 124.609 19.905L127.749 19.9218H128.052C128.972 19.9217 129.559 19.4587 129.812 18.5385C130.469 16.1519 131.231 13.5629 131.893 11.1818C131.96 10.9462 131.96 10.7798 131.893 10.6884C131.827 10.5997 131.674 10.5528 131.439 10.5528L128.298 10.536H127.996Z" fill="white"/>
 <path d="M146.865 5.79611C147.117 5.79618 147.269 6.00132 147.2 6.25629L147.097 6.54999L146.817 7.26517H146.878C147.735 6.51956 149.021 5.80724 150.177 5.80721H153.245C156.61 5.78781 157.689 7.93595 156.899 10.8243C155.829 14.7267 154.796 18.6059 153.728 22.4747L153.265 24.1321C153.198 24.3816 152.941 24.5842 152.691 24.5842H148.051C147.801 24.5842 147.655 24.3816 147.721 24.1321L151.23 11.1042C151.355 10.6469 151.258 10.4751 150.773 10.4751H146.063L142.238 24.1321C142.169 24.3816 141.911 24.5842 141.662 24.5842H137.021C136.772 24.5842 136.622 24.3816 136.692 24.1321L141.573 6.25629C141.639 6.00127 141.903 5.79611 142.155 5.79611H146.865Z" fill="white"/>
 <path d="M165.703 0.731207C165.823 0.299191 166.216 0 166.664 0H215.417C217.722 0 219.393 2.19567 218.779 4.41733L211.94 29.1683C211.821 29.6003 211.428 29.8995 210.98 29.8995H162.227C159.922 29.8995 158.25 27.7038 158.864 25.4822L165.703 0.731207Z" fill="#FF3E5A"/></svg></div>
-  <div class="footer-info">Affiliate Performance Tracker — uso interno</div>
-  <div class="footer-adm">🔒 ADM concessione</div>
+  <div class="footer-info">
 </footer>
 <script>
 /* ════ APP FUNCTIONS ════ */
@@ -747,6 +747,7 @@ function renderOverview(){
     <div class="kpi-card"><div class="kpi-label">Giocato</div><div class="kpi-value">${fe(totalGiocato)}</div></div>
     <div class="kpi-card"><div class="kpi-label">Payout medio</div><div class="kpi-value">${fp(payout)}</div></div>
     <div class="kpi-card"><div class="kpi-label">Affiliati attivi</div><div class="kpi-value">${nAffs}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Conti attivi</div><div class="kpi-value">${fn(rows.reduce((s,r)=>s+(+r.conti||0),0))}</div></div>
     <div class="kpi-card"><div class="kpi-label">Ticket totali</div><div class="kpi-value">${fn(totalTickets)}</div></div>
   `;
 
@@ -933,33 +934,52 @@ function renderCategorie(){
   (function(){
     const s=tblSort.cat;
     if(s.col) data.sort((a,b)=>{
-      const fields={ggr:[a.ggr,b.ggr],rake:[a.rake,b.rake],giocato:[a.giocato,b.giocato],
-        vinto:[a.vinto,b.vinto],tickets:[a.tickets,b.tickets],
+      const fields={rake:[a.rake,b.rake],giocato:[a.giocato,b.giocato],
+        vinto:[a.vinto,b.vinto],tickets:[a.tickets,b.tickets],conti:[a.conti,b.conti],
         payout:[a.giocato>0?a.vinto/a.giocato:0,b.giocato>0?b.vinto/b.giocato:0]};
       if(s.col==='cat') return a.cat.localeCompare(b.cat)*s.dir;
-      const [va,vb]=fields[s.col]||[a.ggr,b.ggr];
+      const [va,vb]=fields[s.col]||[a.rake,b.rake];
       return (vb-va)*s.dir;
     });
   })();
+
+  /* build top3 per category */
+  const top3ByCat={};
+  data.forEach(function(catRow){
+    const cat=catRow.cat;
+    const affMap={};
+    rows.filter(function(r){return r.cat===cat;}).forEach(function(r){
+      if(!affMap[r.aff])affMap[r.aff]={aff:r.aff,ggr:0,rake:0};
+      affMap[r.aff].ggr+=(+r.ggr||0);
+      affMap[r.aff].rake+=(+r.rake||0);
+    });
+    top3ByCat[cat]=Object.values(affMap).sort(function(a,b){return b.rake-a.rake;}).slice(0,3);
+  });
+
   document.getElementById('tbl-cat').innerHTML=`<table><thead><tr>
     <th class="sortable" onclick="sortBy('cat','cat')">Categoria ${si('cat','cat')}</th>
-    <th class="sortable" onclick="sortBy('cat','ggr')">GGR ${si('cat','ggr')}</th>
     <th class="sortable" onclick="sortBy('cat','rake')">Rake ${si('cat','rake')}</th>
     <th class="sortable" onclick="sortBy('cat','giocato')">Giocato ${si('cat','giocato')}</th>
     <th class="sortable" onclick="sortBy('cat','vinto')">Vinto ${si('cat','vinto')}</th>
     <th class="sortable" onclick="sortBy('cat','payout')">Payout % ${si('cat','payout')}</th>
     <th class="sortable" onclick="sortBy('cat','tickets')">Ticket ${si('cat','tickets')}</th>
+    <th class="sortable" onclick="sortBy('cat','conti')">Conti attivi ${si('cat','conti')}</th>
+    <th>Top 3 affiliati</th>
   </tr></thead><tbody>
   ${data.map(cat=>{
     const py=cat.giocato>0?(cat.vinto/cat.giocato*100):0;
+    const top3=top3ByCat[cat.cat]||[];
+    const top3html=top3.map((a,i)=>`<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px;font-size:11px;color:var(--text2)"><span style="font-size:10px;opacity:.5">${i+1}.</span><span style="font-weight:600;color:var(--text)">${a.aff}</span><span style="color:var(--text3)">${fe(a.rake)}</span></span>`).join('');
     return`<tr>
       <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${CAT_COLORS[cat.cat]||'#64748b'};margin-right:8px;vertical-align:middle"></span>${cat.cat}</td>
-      <td>${fe(cat.ggr)}</td><td>${fe(cat.rake)}</td><td>${fe(cat.giocato)}</td><td>${fe(cat.vinto)}</td>
+      <td>${fe(cat.rake)}</td><td>${fe(cat.giocato)}</td><td>${fe(cat.vinto)}</td>
       <td><span class="${py<85?'badge-pos':py>100?'badge-neg':'badge-cat'}">${fp(py)}</span></td>
-      <td>${fn(cat.tickets)}</td>
+      <td>${fn(cat.tickets)}</td><td>${fn(cat.conti)}</td>
+      <td style="min-width:240px">${top3html||'—'}</td>
     </tr>`;
   }).join('')}
   </tbody></table>`;
+
 }
 
 
@@ -1031,7 +1051,7 @@ function toggleAllMonths(){
 function setMetricView(v){
   gMetricView=v;
   document.querySelectorAll('.metric-toggle').forEach(b=>b.classList.remove('active'));
-  const idMap={rake:'g-show-rake',turnover:'g-show-turnover',both:'g-show-both'};
+  const idMap={rake:'g-show-rake',turnover:'g-show-turnover',both:'g-show-both',conti:'g-show-conti'};
   const el=document.getElementById(idMap[v]);
   if(el)el.classList.add('active');
   renderGrafico();
@@ -1082,9 +1102,10 @@ function renderGrafico(){
     (db[m]||[]).forEach(r=>{
       if(selCat&&r.cat!==selCat)return;
       if(!affData[r.aff]){affData[r.aff]={};affMeta[r.aff]={padre:r.padre||'—'};}
-      if(!affData[r.aff][m])affData[r.aff][m]={rake:0,turnover:0};
+      if(!affData[r.aff][m])affData[r.aff][m]={rake:0,turnover:0,conti:0};
       affData[r.aff][m].rake    +=(+r.rake||0);
       affData[r.aff][m].turnover+=(+r.giocato||0);
+      affData[r.aff][m].conti   =Math.max(affData[r.aff][m].conti,(+r.conti||0));
     });
   });
 
@@ -1097,8 +1118,9 @@ function renderGrafico(){
   });
 
   /* ── helpers ── */
-  const totRake=aff=>filtMs.reduce((s,m)=>s+(affData[aff][m]?.rake||0),0);
-  const totTurn=aff=>filtMs.reduce((s,m)=>s+(affData[aff][m]?.turnover||0),0);
+  const totRake =aff=>filtMs.reduce((s,m)=>s+(affData[aff][m]?.rake||0),0);
+  const totTurn =aff=>filtMs.reduce((s,m)=>s+(affData[aff][m]?.turnover||0),0);
+  const totConti=aff=>filtMs.reduce((s,m)=>Math.max(s,affData[aff][m]?.conti||0),0);
   const firstVal=(aff,field)=>affData[aff][firstM]?.[field]||0;
   const lastVal =(aff,field)=>affData[aff][lastM]?.[field]||0;
   const variance=(aff,field)=>{
@@ -1117,6 +1139,7 @@ function renderGrafico(){
     let va,vb;
     if(!gSortCol||gSortCol==='total_rake'){va=totRake(a);vb=totRake(b);}
     else if(gSortCol==='total_turn'){va=totTurn(a);vb=totTurn(b);}
+    else if(gSortCol==='total_conti'){va=totConti(a);vb=totConti(b);}
     else if(gSortCol==='var_rake'){va=variance(a,'rake')??-Infinity;vb=variance(b,'rake')??-Infinity;}
     else if(gSortCol==='var_turn'){va=variance(a,'turnover')??-Infinity;vb=variance(b,'turnover')??-Infinity;}
     else{
@@ -1135,7 +1158,8 @@ function renderGrafico(){
 
   const showRake=gMetricView==='rake'||gMetricView==='both';
   const showTurn=gMetricView==='turnover'||gMetricView==='both';
-  const colsPerMonth=showRake&&showTurn?2:1;
+  const showConti=gMetricView==='conti';
+  const colsPerMonth=(showRake&&showTurn)?2:1;
 
   /* ── helpers: icons & chips ── */
   function sortIcon(col){
@@ -1236,9 +1260,10 @@ function renderGrafico(){
 
   /* totals & variance */
   if(showRake) hCols+=`<th class="th-num sortable" onclick="pivotSort('total_rake')" style="border-left:2px solid rgba(232,0,28,.35)">Totale rake${sortIcon('total_rake')}</th>`;
-  if(showTurn) hCols+=`<th class="th-num sortable" onclick="pivotSort('total_turn')" style="border-left:2px solid rgba(125,211,252,.25)">Totale turnover${sortIcon('total_turn')}</th>`;
+  if(showTurn) hCols+=`<th class="th-num sortable" onclick="pivotSort('total_turn')" style="border-left:2px solid rgba(125,211,252,.25)">Totale giocato${sortIcon('total_turn')}</th>`;
   if(showRake) hCols+=`<th class="th-num sortable" onclick="pivotSort('var_rake')" style="border-left:2px solid rgba(232,0,28,.35);background:rgba(232,0,28,.04)">Δ Rake periodo${sortIcon('var_rake')}</th>`;
-  if(showTurn) hCols+=`<th class="th-num sortable" onclick="pivotSort('var_turn')" style="border-left:2px solid rgba(125,211,252,.25);background:rgba(125,211,252,.03)">Δ Turnover periodo${sortIcon('var_turn')}</th>`;
+  if(showTurn) hCols+=`<th class="th-num sortable" onclick="pivotSort('var_turn')" style="border-left:2px solid rgba(125,211,252,.25);background:rgba(125,211,252,.03)">Δ Giocato periodo${sortIcon('var_turn')}</th>`;
+  if(showConti) hCols+=`<th class="th-num sortable" onclick="pivotSort('total_conti')">Conti attivi ${sortIcon('total_conti')}</th>`;
 
   /* sub-header for "both" mode */
   let subRow='';
@@ -1274,13 +1299,16 @@ function renderGrafico(){
     /* ── data cells: mirror header structure (visible months + collapsed spans) ── */
     /* Walk filtMs same way as header: first, then middle groups, then last */
     function cellFor(m,mi_visible,field,highlight){
-      const d2=affData[aff][m]||{rake:0,turnover:0};
+      const d2=affData[aff][m]||{rake:0,turnover:0,conti:0};
       const hl=highlight?'background:rgba(255,255,255,.015)':'';
       if(field==='both'){
         return `<td class="td-num" style="border-left:1px solid var(--border);${hl}">
           <div class="cell-val">${fe(d2.rake)}</div>${mi_visible>0?delta(aff,mi_visible,'rake'):''}</td>
           <td class="td-num" style="${hl}">
           <div class="cell-val muted">${fe(d2.turnover)}</div>${mi_visible>0?delta(aff,mi_visible,'turnover'):''}</td>`;
+      } else if(field==='conti'){
+        return`<td class="td-num" style="border-left:1px solid var(--border);${hl}">
+          <div class="cell-val" style="color:#7dd3fc">${fn(d2.conti)}</div></td>`;
       } else if(field==='rake'){
         return`<td class="td-num" style="border-left:1px solid var(--border);${hl}">
           <div class="cell-val">${fe(d2.rake)}</div>${mi_visible>0?delta(aff,mi_visible,'rake'):''}</td>`;
@@ -1289,7 +1317,7 @@ function renderGrafico(){
           <div class="cell-val muted">${fe(d2.turnover)}</div>${mi_visible>0?delta(aff,mi_visible,'turnover'):''}</td>`;
       }
     }
-    const viewField=showRake&&showTurn?'both':showRake?'rake':'turnover';
+    const viewField=showRake&&showTurn?'both':showConti?'conti':showRake?'rake':'turnover';
     let visIdx=0;
 
     /* first month */
@@ -1314,6 +1342,7 @@ function renderGrafico(){
           if(viewField==='both'||viewField==='rake') inner+=`<span style="font-size:11px;color:var(--slate3)">${fe(sumR)}</span>`;
           if(viewField==='both') inner+=' / ';
           if(viewField==='both'||viewField==='turnover') inner+=`<span style="font-size:11px;color:var(--slate3)">${fe(sumT)}</span>`;
+          if(viewField==='conti'){const sumC=hiddenMs.reduce((s,hm)=>Math.max(s,affData[aff][hm]?.conti||0),0);inner+=`<span style="font-size:11px;color:#7dd3fc">${fn(sumC)}</span>`;}
           cells+=`<td colspan="${span}" class="td-num" style="border-left:1px solid var(--border);opacity:.5;font-style:italic">${inner}</td>`;
           i=j;
         }
@@ -1325,6 +1354,7 @@ function renderGrafico(){
 
     /* totals */
     const tr=totRake(aff), tt=totTurn(aff);
+    const tc=filtMs.reduce((s,m)=>s+Math.max(0,...((db[m]||[]).filter(r=>r.aff===aff&&(!selCat||r.cat===selCat)).map(r=>+r.conti||0)),[0]),0);
     if(showRake) cells+=`<td class="td-num td-total" style="border-left:2px solid rgba(232,0,28,.35)">
       <div class="cell-val strong">${fe(tr)}</div>
       <div class="mini-bar" style="width:${Math.round(tr/maxRake*60)}px"></div></td>`;
@@ -1333,6 +1363,7 @@ function renderGrafico(){
       <div class="mini-bar sky" style="width:${Math.round(tt/maxTurn*60)}px"></div></td>`;
     if(showRake) cells+=`<td class="td-num" style="border-left:2px solid rgba(232,0,28,.35);background:rgba(232,0,28,.04)">${varChip(aff,'rake')}</td>`;
     if(showTurn) cells+=`<td class="td-num" style="background:rgba(125,211,252,.03)">${varChip(aff,'turnover')}</td>`;
+    if(showConti) cells+=`<td class="td-num"><div class="cell-val strong" style="color:#7dd3fc">${fn(tc)}</div></td>`;
 
     return`<tr>${cells}</tr>`;
   }).join('');
@@ -1836,44 +1867,6 @@ async function loadFromFirestore(){
     console.error('Firestore load error:', e);
   }
 }
-
-async function deleteMonthFromSupabase(monthKey){ /* alias kept */
-  return deleteMonthFromFirestore(monthKey);
-}
-
-async function deleteMonthFromFirestore(monthKey){
-  if(!fbDb||!currentUser) return;
-  try{
-    const docId = currentUser.uid + '_' + monthKey;
-    await fbDb.collection('uploads').doc(docId).delete();
-  }catch(e){ console.error('Firestore delete error:', e); }
-}
-
-/* ── AUTH STATE LISTENER & INIT ── */
-async function checkSession(){
-  const ok = initFirebase();
-  if(!ok || FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY'){
-    /* Firebase not configured: run offline with localStorage only */
-    console.warn('Firebase not configured — running in offline/local mode');
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    appInit();
-    return;
-  }
-  /* Listen for auth state: fires immediately with current session or null */
-  fbAuth.onAuthStateChanged(user=>{
-    if(user){
-      onLoginSuccess(user);
-    } else {
-      /* No session — show login */
-      document.getElementById('login-screen').style.display = 'flex';
-      document.getElementById('app').style.display = 'none';
-    }
-  });
-}
-
-/* Start */
-checkSession();
 
 async function deleteMonthFromSupabase(monthKey){ /* alias kept */
   return deleteMonthFromFirestore(monthKey);
