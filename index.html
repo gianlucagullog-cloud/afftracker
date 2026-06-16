@@ -383,6 +383,27 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
     </div>
 
     <div id="kpi-overview" class="kpi-grid"></div>
+
+    <!-- ALERT CALI / CRESCITE -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+      <div class="chart-card" id="card-top-cali" style="padding:16px 20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div class="chart-card-title" style="margin-bottom:0">⚠️ Top 5 cali — giocato</div>
+          <div style="display:flex;gap:6px">
+            <button class="metric-toggle active" id="cali-mode-prev" onclick="setCaliMode('prev')" style="font-size:10px;padding:3px 8px">vs mese prec.</button>
+            <button class="metric-toggle" id="cali-mode-first" onclick="setCaliMode('first')" style="font-size:10px;padding:3px 8px">vs inizio periodo</button>
+          </div>
+        </div>
+        <div id="cali-list"></div>
+      </div>
+      <div class="chart-card" id="card-top-crescite" style="padding:16px 20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div class="chart-card-title" style="margin-bottom:0">🚀 Top 5 crescite — giocato</div>
+        </div>
+        <div id="crescite-list"></div>
+      </div>
+    </div>
+
     <div class="charts-grid">
       <div class="chart-card">
         <div class="chart-card-title">Top 5 affiliati per GGR</div>
@@ -560,6 +581,13 @@ let db={};
 let pendingData=null;
 let selOvMonth=null,selCatMonth=null;
 let selOvMonths=new Set();   /* multi-select for overview */
+let caliMode='prev'; /* 'prev' = vs previous month | 'first' = vs first month of period */
+function setCaliMode(m){
+  caliMode=m;
+  document.getElementById('cali-mode-prev').classList.toggle('active', m==='prev');
+  document.getElementById('cali-mode-first').classList.toggle('active', m==='first');
+  renderCaliWidget();
+}
 let selCatMonths=new Set();  /* multi-select for categorie */
 
 function onOvRangeChange(){
@@ -805,7 +833,7 @@ function renderOverview(){
     const bar=Math.round(a.ggr/maxG*60);
     return`<tr class="clickable-row" onclick="openAffPopup('${a.aff}',[...selOvMonths].sort(),document.getElementById('ov-cat-filter')?document.getElementById('ov-cat-filter').value:'')" style="cursor:pointer">
       <td><span class="rank ${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':''}">${i+1}</span></td>
-      <td><div class="aff-code" style="color:var(--red)">${a.aff}</div></td>
+      <td><div class="aff-code" style="color:var(--sky);text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(125,211,252,.3)">${a.aff}</div></td>
       <td><div style="font-size:12px;color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis">${a.padre||'—'}</div></td>
       <td><span class="net-tag">${a.network||'—'}</span></td>
       <td>${fe(a.ggr)}<span class="ggr-bar" style="width:${bar}px"></span></td>
@@ -814,6 +842,8 @@ function renderOverview(){
       <td>${fn(a.conti)}</td>
     </tr>`;
   }).join('')}</tbody></table>`;
+
+  renderCaliWidget();
 }
 
 
@@ -855,7 +885,7 @@ function renderAffiliati(){
     <th class="sortable" onclick="sortBy('affiliati','tickets')">Ticket ${si('affiliati','tickets')}</th>
   </tr></thead><tbody>${data.map((a,i)=>{const py=a.giocato>0?(a.vinto/a.giocato*100):0;return`<tr class="clickable-row" onclick="openAffPopup('${a.aff}',months().filter(m=>!document.getElementById('aff-month-sel').value||m===document.getElementById('aff-month-sel').value),'')" style="cursor:pointer">
     <td><span class="rank">${i+1}</span></td>
-    <td><div class="aff-code" style="color:var(--red)">${a.aff}</div></td>
+    <td><div class="aff-code" style="color:var(--sky);text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(125,211,252,.3)">${a.aff}</div></td>
     <td><div style="font-size:12px;color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis">${a.padre||'—'}</div></td>
     <td><span class="net-tag">${a.network||'—'}</span></td>
     <td>${fe(a.ggr)}</td><td>${fe(a.rake)}</td><td>${fe(a.giocato)}</td><td>${fe(a.vinto)}</td>
@@ -1687,6 +1717,114 @@ function closeAffPopup(){
 /* close on Escape key */
 document.addEventListener('keydown', function(e){
   if(e.key === 'Escape') closeAffPopup();
+});
+
+function renderCaliWidget(){
+  const selMs=[...selOvMonths].sort();
+  const selCatOv=document.getElementById('ov-cat-filter')?document.getElementById('ov-cat-filter').value:'';
+  const ms=months();
+
+  /* need at least 2 months total to compare */
+  if(selMs.length===0||ms.length<2){
+    ['cali-list','crescite-list'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el) el.innerHTML='<div style="font-size:12px;color:var(--text3);padding:8px 0">Seleziona almeno 2 mesi</div>';
+    });
+    return;
+  }
+
+  /* determine comparison month */
+  let compareMonth;
+  if(caliMode==='prev'){
+    /* vs the month immediately before the selected period */
+    const firstSel=selMs[0];
+    const piFirst=ms.indexOf(firstSel);
+    compareMonth=piFirst>0?ms[piFirst-1]:null;
+  } else {
+    /* vs first month of selected period */
+    compareMonth=selMs[0];
+  }
+  /* current = last month of selected period */
+  const currentMonth=selMs[selMs.length-1];
+
+  if(!compareMonth||compareMonth===currentMonth){
+    ['cali-list','crescite-list'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el) el.innerHTML='<div style="font-size:12px;color:var(--text3);padding:8px 0">Serve un mese di riferimento precedente</div>';
+    });
+    return;
+  }
+
+  /* collect all affiliates that appear in both months */
+  const affSet=new Set([
+    ...(db[compareMonth]||[]).map(r=>r.aff),
+    ...(db[currentMonth]||[]).map(r=>r.aff)
+  ]);
+
+  const results=[];
+  affSet.forEach(aff=>{
+    const rowsComp=(db[compareMonth]||[]).filter(r=>r.aff===aff&&(!selCatOv||r.cat===selCatOv));
+    const rowsCurr=(db[currentMonth]||[]).filter(r=>r.aff===aff&&(!selCatOv||r.cat===selCatOv));
+    const giocatoComp=rowsComp.reduce((s,r)=>s+(+r.giocato||0),0);
+    const giocatoCurr=rowsCurr.reduce((s,r)=>s+(+r.giocato||0),0);
+    if(giocatoComp===0) return; /* skip if no activity in reference month */
+    const pct=(giocatoCurr-giocatoComp)/giocatoComp*100;
+    const rakeComp=rowsComp.reduce((s,r)=>s+(+r.rake||0),0);
+    const rakeCurr=rowsCurr.reduce((s,r)=>s+(+r.rake||0),0);
+    const padre=(rowsCurr[0]||rowsComp[0])?.padre||'—';
+    results.push({aff,pct,giocatoComp,giocatoCurr,rakeComp,rakeCurr,padre});
+  });
+
+  const cmpLabel=ml(compareMonth)+' → '+ml(currentMonth);
+  const cali=results.filter(r=>r.pct<-1).sort((a,b)=>a.pct-b.pct).slice(0,5);
+  const crescite=results.filter(r=>r.pct>1).sort((a,b)=>b.pct-a.pct).slice(0,5);
+
+  function renderList(items){
+    if(!items.length) return '<div style="font-size:12px;color:var(--text3);padding:8px 0">Nessun dato significativo</div>';
+    return items.map(function(r){
+      const isDown=r.pct<0;
+      const absP=Math.abs(r.pct).toFixed(1);
+      const barW=Math.min(100,Math.abs(r.pct)/2);
+      const bgc=isDown?'rgba(248,113,113,.12)':'rgba(74,222,128,.12)';
+      const tc=isDown?'#f87171':'#4ade80';
+      const arrow=isDown?'▼':'▲';
+      const pid=r.padre.substring(0,25);
+      /* store months in data attrs to avoid quote hell */
+      return (
+        '<div style="margin-bottom:14px">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">' +
+            '<div>' +
+              '<span class="aff-code cali-aff-link" data-aff="' + r.aff + '" data-cm="' + compareMonth + '" data-cu="' + currentMonth + '" style="font-size:14px;cursor:pointer;color:var(--sky)">' + r.aff + '</span>' +
+              '<span style="font-size:11px;color:var(--text3);margin-left:6px">' + pid + '</span>' +
+            '</div>' +
+            '<span style="font-size:13px;font-weight:700;padding:2px 8px;border-radius:5px;background:' + bgc + ';color:' + tc + '">' + arrow + ' ' + absP + '%</span>' +
+          '</div>' +
+          '<div style="display:flex;align-items:center;gap:8px">' +
+            '<div style="flex:1;height:5px;background:rgba(128,128,128,.15);border-radius:3px;overflow:hidden">' +
+              '<div style="height:5px;border-radius:3px;width:' + barW + '%;background:' + tc + '"></div>' +
+            '</div>' +
+            '<span style="font-size:11px;color:var(--text3);white-space:nowrap">' + fe(r.giocatoComp) + ' \u2192 ' + fe(r.giocatoCurr) + '</span>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join('');
+  }
+
+  const caliEl=document.getElementById('cali-list');
+  const crescEl=document.getElementById('crescite-list');
+  const subLabel='<div style="font-size:10px;color:var(--text3);margin-bottom:10px">'+cmpLabel+'</div>';
+  if(caliEl)   caliEl.innerHTML=subLabel+renderList(cali,'down');
+  if(crescEl) crescEl.innerHTML=subLabel+renderList(crescite,'up');
+}
+
+/* delegate clicks on cali affiliate links */
+document.addEventListener('click', function(e){
+  const el=e.target.closest('.cali-aff-link');
+  if(!el) return;
+  const aff=el.dataset.aff;
+  const cm=el.dataset.cm;
+  const cu=el.dataset.cu;
+  if(aff && cm && cu) openAffPopup(aff, [cm, cu], '');
 });
 
 function saveDB(){
