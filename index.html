@@ -139,7 +139,10 @@ header{background:var(--navy);border-bottom:1px solid var(--border);padding:0 24
 .sub-header th{padding:6px 12px;border-bottom:1px solid var(--border);font-size:11px;font-weight:600;color:var(--text2);letter-spacing:.04em;background:var(--sub-hdr);white-space:nowrap}
 .th-aff{text-align:left;min-width:180px;position:sticky;left:0;background:var(--navy2);z-index:2}
 .th-num{text-align:right;min-width:100px}
-.th-num.lang-toggle{display:flex;align-items:center;background:rgba(255,255,255,.04);border:1px solid var(--border2);border-radius:6px;overflow:hidden}
+.th-num.hide-inactive-toggle{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer;white-space:nowrap;padding:6px 10px;border:1px solid var(--border2);border-radius:6px;background:rgba(255,255,255,.02)}
+.hide-inactive-toggle:hover{color:var(--text)}
+.hide-inactive-toggle input[type="checkbox"]{accent-color:var(--red);cursor:pointer;width:14px;height:14px}
+.lang-toggle{display:flex;align-items:center;background:rgba(255,255,255,.04);border:1px solid var(--border2);border-radius:6px;overflow:hidden}
 .lang-toggle button{background:transparent;border:none;color:var(--text3);font-size:11px;font-weight:700;padding:6px 10px;cursor:pointer;font-family:'Inter',sans-serif;transition:.15s}
 .lang-toggle button.active{background:var(--red);color:#fff}
 .lang-toggle button:not(.active):hover{color:var(--text)}
@@ -164,7 +167,7 @@ header{background:var(--navy);border-bottom:1px solid var(--border);padding:0 24
 .expand-all-btn{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--slate2);font-size:10px;font-weight:600;padding:2px 8px;border-radius:5px;cursor:pointer;white-space:nowrap;font-family:'Inter',sans-serif;transition:all .15s}
 .expand-all-btn:hover{background:rgba(255,255,255,.12);color:#fff}
 .th-collapsed{text-align:center;padding:4px 6px !important}
-.expand-group-btn{background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.15);color:var(--slate2);font-size:11px;font-weight:600;padding:5px 10px;border-radius:6px;cursor:pointer;white-space:nowrap;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:'Inter',sans-serif;transition:all .15s;width:100%;min-width:80px}
+.expand-group-btn{background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.15);color:var(--slate2);font-size:10px;font-weight:700;padding:3px 2px;border-radius:4px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;justify-content:center;font-family:'Inter',sans-serif;transition:all .15s;width:100%;min-width:0}
 .expand-group-btn:hover{background:rgba(232,0,28,.1);border-color:rgba(232,0,28,.3);color:#ff6b7a}
 .th-month-first,.th-month-last{background:rgba(255,255,255,.02)}
 .var-chip{display:inline-block;font-size:13px;font-weight:700;padding:4px 10px;border-radius:6px;font-family:'Barlow Condensed',sans-serif;letter-spacing:.3px}
@@ -398,6 +401,11 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
       </div>
       <div style="display:flex;gap:10px;align-items:center;margin-top:10px">
         <input class="tbl-search" id="ov-search" placeholder="🔍 Cerca affiliato..." data-i18n-placeholder="searchAffiliate" oninput="renderOverview()" style="flex:1;max-width:280px">
+        <label class="hide-inactive-toggle">
+          <input type="checkbox" id="ov-hide-inactive" onchange="renderOverview()">
+          <span data-i18n="nascondiInattivi">Nascondi inattivi</span>
+        </label>
+        <input type="number" class="tbl-search" id="ov-min-giocato" placeholder="Min. giocato €" data-i18n-placeholder="minGiocato" oninput="renderOverview()" style="width:130px;text-align:right" min="0" step="100">
         <button class="export-btn" onclick="exportXLSX()" data-i18n="exportExcelShort">⬇ Excel</button>
       </div>
       <div id="pills-overview" class="month-pills" style="margin-bottom:0;margin-top:10px"></div>
@@ -456,6 +464,13 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
           <button class="metric-toggle" onclick="catSelectNone()" style="font-size:11px" data-i18n="none">Nessuno</button>
         </div>
       </div>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:10px">
+        <label class="hide-inactive-toggle">
+          <input type="checkbox" id="cat-hide-inactive" onchange="renderCategorie()">
+          <span data-i18n="nascondiInattivi">Nascondi inattivi</span>
+        </label>
+        <input type="number" class="tbl-search" id="cat-min-giocato" placeholder="Min. giocato €" data-i18n-placeholder="minGiocato" oninput="renderCategorie()" style="width:130px;text-align:right" min="0" step="100">
+      </div>
       <div id="pills-cat" class="month-pills" style="margin-bottom:0"></div>
     </div>
     <div class="charts-grid">
@@ -505,6 +520,11 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
             <option value="10" data-i18n="crescitaMaggiore10">Crescita > 10%</option>
             <option value="25" data-i18n="crescitaMaggiore25">Crescita > 25%</option>
           </select></div>
+        <div><label class="field-label">&nbsp;</label>
+          <label class="hide-inactive-toggle" style="height:38px;box-sizing:border-box">
+            <input type="checkbox" id="g-hide-inactive" onchange="renderGrafico()">
+            <span data-i18n="nascondiInattivi">Nascondi inattivi</span>
+          </label></div>
       </div>
     </div>
 
@@ -589,6 +609,17 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
   <div class="footer-info" data-i18n="footerInfo">Affiliate Performance Tracker — uso interno</div>
   <div class="footer-adm" data-i18n="admConcession">🔒 ADM concessione</div>
 </footer>
+
+<!-- INACTIVE AFFILIATES POPUP -->
+<div id="inactive-popup-overlay" onclick="closeInactivePopup()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;backdrop-filter:blur(3px)"></div>
+<div id="inactive-popup" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--card-bg);border:1px solid var(--border);border-radius:16px;width:min(480px,90vw);max-height:75vh;overflow-y:auto;z-index:1001;box-shadow:0 24px 64px rgba(0,0,0,.5)">
+  <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--card-bg);z-index:2">
+    <div id="inactive-popup-title" style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:#f87171"></div>
+    <button onclick="closeInactivePopup()" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;line-height:1;padding:4px" data-i18n="chiudi" title="Chiudi">✕</button>
+  </div>
+  <div id="inactive-popup-body" style="padding:12px 22px 20px"></div>
+</div>
+
 <script>
 /* ════ APP FUNCTIONS ════ */
 /* ════════════════════════════════════════════════════
@@ -734,6 +765,11 @@ const I18N = {
     vaiSuCaricaDati: 'Vai su',
     perIniziare: 'per iniziare.',
     nessunDatoFiltro: 'Nessun dato per il periodo/filtri selezionati',
+    nascondiInattivi: 'Nascondi inattivi',
+    minGiocato: 'Min. giocato €',
+    vediChiSono: 'Vedi chi sono',
+    affiliatiInattiviTitolo: 'Affiliati inattivi',
+    chiudi: 'Chiudi',
   },
   en: {
     appTitle: 'Affiliate Performance Tracker',
@@ -874,6 +910,11 @@ const I18N = {
     vaiSuCaricaDati: 'Go to',
     perIniziare: 'to get started.',
     nessunDatoFiltro: 'No data for the selected period/filters',
+    nascondiInattivi: 'Hide inactive',
+    minGiocato: 'Min. turnover €',
+    vediChiSono: 'See who they are',
+    affiliatiInattiviTitolo: 'Inactive affiliates',
+    chiudi: 'Close',
   }
 };
 
@@ -1180,7 +1221,7 @@ function renderOverview(){
     <div class="kpi-card"><div class="kpi-label">${t('kpiContiAttivi')}</div><div class="kpi-value">${fn(totalConti)}</div></div>
     <div class="kpi-card"><div class="kpi-label">${t('kpiTicketTotali')}</div><div class="kpi-value">${fn(totalTickets)}</div></div>
     <div class="kpi-card" style="${inactiveCount>0?'border-left:2px solid #f87171':''}"><div class="kpi-label">${t('kpiAffiliatiInattivi')}</div><div class="kpi-value" style="${inactiveCount>0?'color:#f87171':''}">${inactiveCount}</div>
-      ${inactiveCount>0?`<div style="font-size:10px;color:var(--text3);margin-top:4px">vs ${ml(refMonth)}</div>`:''}
+      ${inactiveCount>0?`<div style="font-size:10px;color:var(--text3);margin-top:4px">vs ${ml(refMonth)}</div><button onclick='openInactivePopup(${JSON.stringify(inactiveList)},${JSON.stringify(refMonth)})' style="margin-top:6px;font-size:11px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);color:#f87171;padding:3px 9px;border-radius:6px;cursor:pointer;font-family:inherit">${t('vediChiSono')} →</button>`:''}
     </div>
   `;
 
@@ -1207,6 +1248,17 @@ function renderOverview(){
     affData=affData.filter(function(a){
       return a.aff.toLowerCase().includes(q) || (a.padre||'').toLowerCase().includes(q);
     });
+  }
+  /* hide inactive (rake===0 in current selection) */
+  const hideInactiveEl=document.getElementById('ov-hide-inactive');
+  if(hideInactiveEl && hideInactiveEl.checked){
+    affData=affData.filter(function(a){return a.rake>0;});
+  }
+  /* hide below min giocato threshold */
+  const minGiocatoEl=document.getElementById('ov-min-giocato');
+  const minGiocatoVal=minGiocatoEl?parseFloat(minGiocatoEl.value)||0:0;
+  if(minGiocatoVal>0){
+    affData=affData.filter(function(a){return a.giocato>=minGiocatoVal;});
   }
   const maxR=Math.max(...affData.map(a=>a.rake),1);
   const top5=affData.slice().sort((a,b)=>b.rake-a.rake).slice(0,5);
@@ -1308,6 +1360,17 @@ function renderCategorie(){
   }
 
   const data=byCat(rows);
+  /* hide inactive categories (rake===0) */
+  const catHideInactiveEl=document.getElementById('cat-hide-inactive');
+  let filteredData=data;
+  if(catHideInactiveEl && catHideInactiveEl.checked){
+    filteredData=filteredData.filter(function(cat){return cat.rake>0;});
+  }
+  const catMinGiocatoEl=document.getElementById('cat-min-giocato');
+  const catMinGiocatoVal=catMinGiocatoEl?parseFloat(catMinGiocatoEl.value)||0:0;
+  if(catMinGiocatoVal>0){
+    filteredData=filteredData.filter(function(cat){return cat.giocato>=catMinGiocatoVal;});
+  }
   const periodLabel=selMs.length===1?ml(selMs[0]):(ml(selMs[0])+' → '+ml(selMs[selMs.length-1])+' ('+selMs.length+' mesi)');
 
   if(cCatBar) cCatBar.destroy();
@@ -1346,7 +1409,7 @@ function renderCategorie(){
   /* apply sort */
   (function(){
     const s=tblSort.cat;
-    if(s.col) data.sort((a,b)=>{
+    if(s.col) filteredData.sort((a,b)=>{
       const fields={rake:[a.rake,b.rake],giocato:[a.giocato,b.giocato],
         vinto:[a.vinto,b.vinto],bonus:[a.bonus,b.bonus],tickets:[a.tickets,b.tickets],conti:[a.conti,b.conti],
         payout:[a.giocato>0?a.vinto/a.giocato:0,b.giocato>0?b.vinto/b.giocato:0]};
@@ -1358,7 +1421,7 @@ function renderCategorie(){
 
   /* build top3 per category */
   const top3ByCat={};
-  data.forEach(function(catRow){
+  filteredData.forEach(function(catRow){
     const cat=catRow.cat;
     const affMap={};
     rows.filter(function(r){return r.cat===cat;}).forEach(function(r){
@@ -1380,7 +1443,7 @@ function renderCategorie(){
     <th class="sortable" onclick="sortBy('cat','conti')">${t('thContiAttivi')} ${si('cat','conti')}</th>
     <th>${t('thTop3Affiliati')}</th>
   </tr></thead><tbody>
-  ${data.map(cat=>{
+  ${filteredData.map(cat=>{
     const py=cat.giocato>0?(cat.vinto/cat.giocato*100):0;
     const top3=top3ByCat[cat.cat]||[];
     const top3html=top3.map((a,i)=>`<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px;font-size:11px;color:var(--text2)"><span style="font-size:10px;opacity:.5">${i+1}.</span><span style="font-weight:600;color:var(--text)">${a.aff}</span><span style="color:var(--text3)">${fe(a.rake)}</span></span>`).join('');
@@ -1565,6 +1628,12 @@ function renderGrafico(){
     });
   }
 
+  /* ── hide inactive affiliates (rake===0 in last month of period) ── */
+  const gHideInactiveEl=document.getElementById('g-hide-inactive');
+  if(gHideInactiveEl && gHideInactiveEl.checked){
+    affList=affList.filter(aff=>(affData[aff][lastM]?.rake||0)>0);
+  }
+
   /* ── sort ── */
   affList.sort((a,b)=>{
     let va,vb;
@@ -1676,10 +1745,9 @@ function renderGrafico(){
         while(j<middleMs.length&&!gExpandedMonths.has(middleMs[j]))j++;
         const hiddenMs=middleMs.slice(i,j);
         const span=colsPerMonth*hiddenMs.length;
-        hCols+=`<th colspan="${span}" class="th-collapsed" style="border-left:1px solid var(--border);padding:4px 6px !important;min-width:0;width:1%">
-          <button onclick="expandMonths(${JSON.stringify(hiddenMs)})" class="expand-group-btn" style="min-width:0;padding:4px 8px;font-size:11px">
+        hCols+=`<th colspan="${span}" class="th-collapsed" style="border-left:1px solid var(--border);padding:2px !important;min-width:0;width:28px;max-width:28px">
+          <button onclick="expandMonths(${JSON.stringify(hiddenMs)})" class="expand-group-btn" title="${ml(hiddenMs[0])}${hiddenMs.length>1?' → '+ml(hiddenMs[hiddenMs.length-1]):''}" style="min-width:0;width:100%;padding:3px 2px;font-size:10px">
             <span style="font-weight:700">+${hiddenMs.length}</span>
-            <span style="font-size:10px;opacity:.6;display:block">${ml(hiddenMs[0]).split(' ')[0]}${hiddenMs.length>1?'→'+ml(hiddenMs[hiddenMs.length-1]).split(' ')[0]:''}</span>
           </button>
         </th>`;
         i=j;
@@ -2179,9 +2247,62 @@ function closeAffPopup(){
   document.body.style.overflow = '';
 }
 
+function openInactivePopup(affList, refMonth){
+  const titleEl=document.getElementById('inactive-popup-title');
+  const bodyEl=document.getElementById('inactive-popup-body');
+  if(titleEl) titleEl.textContent = affList.length + ' ' + t('affiliatiInattiviTitolo');
+
+  /* for each inactive aff, find last known rake/giocato in refMonth and the affiliate's company name */
+  const refRows = db[refMonth]||[];
+  const meta = {};
+  refRows.forEach(function(r){
+    if(!meta[r.aff]) meta[r.aff]={padre:r.padre, rake:0, giocato:0};
+    meta[r.aff].rake    += (+r.rake||0);
+    meta[r.aff].giocato += (+r.giocato||0);
+  });
+
+  const sorted = affList.slice().sort(function(a,b){
+    const ra=(meta[a]?meta[a].rake:0), rb=(meta[b]?meta[b].rake:0);
+    return rb-ra;
+  });
+
+  bodyEl.innerHTML = sorted.map(function(aff){
+    const m=meta[aff]||{padre:'',rake:0,giocato:0};
+    return '<div class="clickable-row inactive-aff-link" data-aff="'+aff+'" data-rm="'+refMonth+'" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)">'+
+      '<div>'+
+        '<div class="aff-code" style="color:var(--sky);text-decoration:underline;text-underline-offset:2px;text-decoration-color:rgba(125,211,252,.3);font-weight:600">'+aff+'</div>'+
+        '<div style="font-size:11px;color:var(--text3);margin-top:2px">'+(m.padre||'—')+'</div>'+
+      '</div>'+
+      '<div style="text-align:right;font-size:12px;color:var(--text2)">'+fe(m.rake)+'<div style="font-size:10px;color:var(--text3)">'+ml(refMonth)+'</div></div>'+
+    '</div>';
+  }).join('');
+
+  document.getElementById('inactive-popup-overlay').style.display='block';
+  document.getElementById('inactive-popup').style.display='block';
+  document.body.style.overflow='hidden';
+}
+
+function closeInactivePopup(){
+  document.getElementById('inactive-popup-overlay').style.display='none';
+  document.getElementById('inactive-popup').style.display='none';
+  document.body.style.overflow='';
+}
+
+/* delegated click handler for inactive-aff-link rows */
+document.addEventListener('click', function(e){
+  const link = e.target.closest('.inactive-aff-link');
+  if(link){
+    const aff = link.getAttribute('data-aff');
+    const rm  = link.getAttribute('data-rm');
+    closeInactivePopup();
+    openAffPopup(aff, [rm], '');
+  }
+});
+
+
 /* close on Escape key */
 document.addEventListener('keydown', function(e){
-  if(e.key === 'Escape') closeAffPopup();
+  if(e.key === 'Escape'){ closeAffPopup(); closeInactivePopup(); }
 });
 
 function renderCaliWidget(){
