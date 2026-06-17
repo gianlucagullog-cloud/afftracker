@@ -1956,7 +1956,13 @@ function appInit(){
   const def = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   const mi  = document.getElementById('month-input');
   if(mi && !mi.value) mi.value = def;
-  loadDB();updateBadge();initTheme();renderOverview();renderMonthsList();
+  loadDB();
+  updateBadge();
+  initTheme();
+  renderOverview();
+  renderMonthsList();
+  /* fetch fresh data from Firestore cloud (async, updates UI when done) */
+  loadFromFirestore();
 }
 
 /* ════════════════════════════════════════════════════
