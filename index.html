@@ -345,6 +345,10 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
     </div>
     <div class="header-right">
       <div class="live-pill"><span class="live-dot"></span> ADM • Italia</div>
+      <div class="sync-status"><span class="sync-dot" id="sync-dot"></span><span id="sync-txt">Sincronizzato</span></div>
+      <div class="user-pill" id="user-pill" style="cursor:pointer" onclick="doLogout()" title="Clicca per uscire">
+        <span id="user-pill-email"></span> <span style="opacity:.6;font-size:10px">✕ esci</span>
+      </div>
       <button class="header-btn theme-toggle-btn" onclick="toggleTheme()" id="theme-btn" title="Cambia tema">
         <span id="theme-icon">☀️</span> Light
       </button>
