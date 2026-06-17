@@ -2787,12 +2787,21 @@ function renderMonthsList(){
     </tbody></table>`;
 }
 
-function deleteMonth(m){
+async function deleteMonth(m){
   if(!confirm(t('eliminareIDati')+' '+ml(m)+'?')) return;
   delete db[m];
-  saveDB();
-  deleteMonthFromFirestore(m);
+  try{ localStorage.setItem('mbt_aff_db', JSON.stringify(db)); }catch(e){}
   renderMonthsList();
+  setSyncStatus('syncing');
+  try{
+    await deleteMonthFromFirestore(m);
+    setSyncStatus('ok');
+    showToast(t('elimina')+': '+ml(m));
+  }catch(e){
+    setSyncStatus('error');
+    console.error('[Firestore] Eliminazione fallita:', e);
+    showToast(currentLang==='en'?'Cloud delete failed — reload may restore this month':'Eliminazione cloud non riuscita — un refresh potrebbe far ricomparire questo mese');
+  }
 }
 
 /* ── AFFILIATO DETAIL POPUP ── */
@@ -3295,11 +3304,9 @@ async function deleteMonthFromSupabase(monthKey){ /* alias kept */
 
 async function deleteMonthFromFirestore(monthKey){
   if(!fbDb||!currentUser) return;
-  try{
-    const docId = currentUser.uid + '_' + monthKey;
-    await fbDb.collection('uploads').doc(docId).delete();
-    console.log('[Firestore] Mese eliminato dal cloud:', monthKey);
-  }catch(e){ console.error('[Firestore] Errore eliminazione:', e); }
+  const docId = currentUser.uid + '_' + monthKey;
+  await fbDb.collection('uploads').doc(docId).delete();
+  console.log('[Firestore] Mese eliminato dal cloud:', monthKey);
 }
 
 /* ── AUTH STATE LISTENER & INIT ── */
