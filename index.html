@@ -1615,8 +1615,10 @@ function handleFile(e){
       rake:    h.indexOf('rake'),
       tickets: h.indexOf('num ticket'),
       conti:   h.indexOf('conti attivi'),
-      bonus:   h.indexOf('bet bonus')>=0?h.indexOf('bet bonus'):h.findIndex(x=>x.includes('bonus'))
+      bonus:   h.findIndex(x=>x.includes('bonus'))
     };
+    console.log('[DEBUG] Header completo del file:', h);
+    console.log('[DEBUG] Indice colonna bonus trovato:', i.bonus, i.bonus>=0?('-> "'+h[i.bonus]+'"'):'(NON TROVATA)');
     pendingData = rows.slice(1).filter(r=>r[i.cod]).map(r=>({
       cat:     (r[i.cat]||'').toString().toLowerCase().trim(),
       aff:     (r[i.cod]||'').toString().trim(),
@@ -2095,27 +2097,36 @@ async function loadFromSupabase(){ /* alias kept for compatibility */
 }
 
 async function loadFromFirestore(){
-  if(!fbDb||!currentUser){ return; }
+  if(!fbDb||!currentUser){ console.warn('[Firestore] fbDb o currentUser non disponibili', {fbDb:!!fbDb, currentUser:!!currentUser}); return; }
   setSyncStatus('syncing');
+  console.log('[Firestore] Caricamento dati per uid:', currentUser.uid);
   try{
+    /* no orderBy server-side to avoid composite-index requirement; sort client-side */
     const snap = await fbDb.collection('uploads')
       .where('userId','==', currentUser.uid)
-      .orderBy('monthKey','asc')
       .get();
+    console.log('[Firestore] Documenti trovati:', snap.size);
     if(!snap.empty){
       snap.forEach(doc=>{
-        const {monthKey, data} = doc.data();
+        const docData = doc.data();
+        console.log('[Firestore] Doc:', doc.id, '-> monthKey:', docData.monthKey, ', righe:', (docData.data||[]).length);
+        const {monthKey, data} = docData;
         if(monthKey && data) db[normalizeKey(monthKey)] = data;
       });
       try{ localStorage.setItem('mbt_aff_db', JSON.stringify(db)); }catch(e){}
       updateBadge();
       renderOverview();
       renderMonthsList();
+    } else {
+      console.warn('[Firestore] Nessun documento trovato per questo utente. Verifica che i dati siano stati salvati con lo stesso uid.');
     }
     setSyncStatus('ok');
   }catch(e){
     setSyncStatus('error');
-    console.error('Firestore load error:', e);
+    console.error('[Firestore] Errore caricamento:', e);
+    if(e.code==='failed-precondition' || (e.message&&e.message.includes('index'))){
+      console.error('[Firestore] ATTENZIONE: potrebbe essere richiesto un indice Firestore. Controlla il link nell\'errore sopra per crearlo automaticamente.');
+    }
   }
 }
 
