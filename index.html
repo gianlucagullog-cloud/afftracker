@@ -139,7 +139,11 @@ header{background:var(--navy);border-bottom:1px solid var(--border);padding:0 24
 .sub-header th{padding:6px 12px;border-bottom:1px solid var(--border);font-size:11px;font-weight:600;color:var(--text2);letter-spacing:.04em;background:var(--sub-hdr);white-space:nowrap}
 .th-aff{text-align:left;min-width:180px;position:sticky;left:0;background:var(--navy2);z-index:2}
 .th-num{text-align:right;min-width:100px}
-.th-num.sortable{cursor:pointer;user-select:none}
+.th-num.lang-toggle{display:flex;align-items:center;background:rgba(255,255,255,.04);border:1px solid var(--border2);border-radius:6px;overflow:hidden}
+.lang-toggle button{background:transparent;border:none;color:var(--text3);font-size:11px;font-weight:700;padding:6px 10px;cursor:pointer;font-family:'Inter',sans-serif;transition:.15s}
+.lang-toggle button.active{background:var(--red);color:#fff}
+.lang-toggle button:not(.active):hover{color:var(--text)}
+.sortable{cursor:pointer;user-select:none}
 .th-num.sortable:hover{color:#fff}
 .sort-icon{margin-left:4px;opacity:.35;font-size:10px}
 .sort-icon.active{opacity:1;color:var(--red)}
@@ -285,22 +289,26 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
 
 <!-- LOGIN SCREEN -->
 <div id="login-screen">
+  <div class="lang-toggle" style="position:absolute;top:20px;right:20px">
+    <button id="lang-it-login" onclick="setLang('it')" class="active">IT</button>
+    <button id="lang-en-login" onclick="setLang('en')">EN</button>
+  </div>
   <div class="login-card">
     <div class="login-logo">
       <span id="login-logo-dark"><svg width="180" height="24" viewBox="0 0 220 30" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10.9465 5.8156C12.6845 5.8156 14.3865 5.82372 16.1522 5.82372C17.9179 5.82372 19.351 6.29228 19.9885 7.94434L20.4598 6.27849C20.5374 5.94136 20.7296 5.84387 20.9454 5.8248L21.0418 5.82941H26.2781C29.1248 5.82944 31.1705 8.14668 30.5053 10.949C30.4138 11.3371 30.3221 11.7502 30.2251 12.0911L26.8463 24.124C26.7742 24.3817 26.5109 24.5896 26.2532 24.5896H21.4798C21.222 24.5896 21.0724 24.3817 21.1417 24.124L24.734 11.1986C24.82 10.8826 24.9031 10.4946 24.407 10.4946H20.4652L16.6844 24.1267C16.6151 24.3817 16.3517 24.5896 16.0967 24.5896H11.3623C11.1073 24.5896 10.9576 24.3817 11.0269 24.1267L14.6082 11.1957C14.7024 10.8464 14.7524 10.4916 14.2812 10.4916H10.3174L6.53634 24.124C6.46701 24.379 6.20388 24.5868 5.94893 24.5869H1.21151C0.956595 24.5868 0.806897 24.379 0.876121 24.124L4.46309 11.1957C4.54901 10.8797 4.6321 10.4916 4.13609 10.4916C2.86935 10.4916 1.61636 10.4862 0.34962 10.4862C0.0973759 10.4862 -0.0523615 10.2809 0.0169363 10.0287L1.03691 6.2728C1.12283 5.91529 1.364 5.81563 1.6162 5.8156L6.00713 5.82372C7.72567 5.82651 9.31659 6.25349 9.88483 7.96924L10.3672 6.2728C10.4614 5.90697 10.6943 5.81562 10.9465 5.8156Z" fill="white"/><path fill-rule="evenodd" clip-rule="evenodd" d="M46.1942 5.7352C46.7984 5.7352 47.3197 5.84591 47.7604 6.04271C49.5039 6.8244 49.9999 8.97005 49.4317 11.0129L47.1892 19.0956L47.1865 19.104H47.17L45.809 24.1267C45.7397 24.3762 45.4818 24.5785 45.2324 24.5785H41.238C40.9858 24.5785 40.8085 24.4287 40.8279 24.1321L40.9137 22.7573C40.6559 23.0372 40.3206 23.3673 39.9187 23.6749C39.3781 24.063 38.4662 24.5896 37.7815 24.5896H33.9894C30.8045 24.609 29.4214 22.9209 30.5053 18.9543C30.702 18.2309 30.8932 17.5101 31.09 16.7812C31.7524 14.3169 33.8704 12.5318 36.476 12.5318H43.3835L43.7078 11.534C43.7827 11.1765 43.7659 10.8882 43.5941 10.6553C43.4223 10.4225 43.1617 10.2865 42.8097 10.3032C39.8715 10.4556 36.9969 10.4667 34.0449 10.6137C33.6181 10.633 33.693 10.3947 33.7955 10.0566L34.832 6.65259C34.9651 6.2174 35.0346 6.1399 35.8523 6.08169L42.039 5.88192C43.4249 5.83757 44.7777 5.73521 46.1942 5.7352ZM37.9756 16.5151C37.4212 16.5151 36.7724 16.7783 36.5285 17.4103L36.0131 19.2897C35.9493 19.5225 35.9493 19.686 36.0131 19.7775C36.0796 19.8662 36.2347 19.9134 36.4703 19.9134L41.4126 19.8579L41.5707 19.2732L42.3135 16.5124L37.9756 16.5151Z" fill="white"/><path d="M165.703 0.731207C165.823 0.299191 166.216 0 166.664 0H215.417C217.722 0 219.393 2.19567 218.779 4.41733L211.94 29.1683C211.821 29.6003 211.428 29.8995 210.98 29.8995H162.227C159.922 29.8995 158.25 27.7038 158.864 25.4822L165.703 0.731207Z" fill="#FF3E5A"/><path d="M170.998 6.72729H179.736C182.12 7.0499 182.608 7.69903 183.095 8.34816 183.15 9.33563 182.781 10.6614 182.537 11.5348 182.147 12.2469 181.612 12.7898 181.081 13.3367 180.507 13.7183 179.889 13.9386 180.979 14.2573 181.557 15.0441 181.628 16.2991 181.648 16.7515 181.573 17.2747 181.404 17.8727 181.002 19.3008 180.373 20.3473 179.515 21.0201 178.658 21.6889 177.513 22.0233 176.085 22.0233H166.69L170.99 6.73123 170.998 6.72729ZM177.662 17.2118C177.906 16.3384 177.595 15.9017 176.722 15.9017H172.351L171.49 18.9625H175.86C176.734 18.9625 177.292 18.5258 177.54 17.6524L177.662 17.2157V17.2118ZM178.724 11.0942C178.968 10.2208 178.658 9.78413 177.784 9.78413H174.07L173.209 12.841H176.923C177.796 12.841 178.355 12.4043 178.603 11.5309L178.724 11.0942Z" fill="white"/><path d="M193.833 22.0193H182.206L186.506 6.72729H198.133L197.271 9.78413H189.575L188.745 12.7347H194.69L193.829 15.7916H187.883L186.994 18.9586H194.69L193.829 22.0154 193.833 22.0193Z" fill="white"/><path d="M203.3 22.0193H199.366L202.808 9.78413H198.221L199.083 6.72729H212.191L211.33 9.78413H206.742L203.3 22.0193Z" fill="white"/></svg></span>
     <span id="login-logo-light" style="display:none"><svg width="180" height="24" viewBox="0 0 220 30" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10.9465 5.8156C12.6845 5.8156 14.3865 5.82372 16.1522 5.82372C17.9179 5.82372 19.351 6.29228 19.9885 7.94434L20.4598 6.27849C20.5374 5.94136 20.7296 5.84387 20.9454 5.8248L21.0418 5.82941H26.2781C29.1248 5.82944 31.1705 8.14668 30.5053 10.949L26.8463 24.124C26.7742 24.3817 26.5109 24.5896 26.2532 24.5896H21.4798C21.222 24.5896 21.0724 24.3817 21.1417 24.124L24.734 11.1986H20.4652L16.6844 24.1267C16.6151 24.3817 16.3517 24.5896 16.0967 24.5896H11.3623C11.1073 24.5896 10.9576 24.3817 11.0269 24.1267L14.6082 11.1957H10.3174L6.53634 24.124C6.46701 24.379 6.20388 24.5868 5.94893 24.5869H1.21151C0.956595 24.5868 0.806897 24.379 0.876121 24.124L4.46309 11.1957C4.13609 10.4916 2.86935 10.4916 0.34962 10.4862C0.0973759 10.4862 -0.0523615 10.2809 0.0169363 10.0287L1.03691 6.2728C1.6162 5.8156L6.00713 5.82372C7.72567 5.82651 9.88483 7.96924L10.3672 6.2728C10.4614 5.90697 10.6943 5.81562 10.9465 5.8156Z" fill="#FF3E5A"/><path d="M165.703 0.731207C165.823 0.299191 166.216 0 166.664 0H215.417C217.722 0 219.393 2.19567 218.779 4.41733L211.94 29.1683C211.821 29.6003 211.428 29.8995 210.98 29.8995H162.227C159.922 29.8995 158.25 27.7038 158.864 25.4822L165.703 0.731207Z" fill="#FF3E5A"/><path d="M170.998 6.72729H179.736C182.608 7.69903 183.095 8.34816 183.15 9.33563 182.781 10.6614 182.537 11.5348 182.147 12.2469 181.612 12.7898 181.081 13.3367 180.507 13.7183 179.889 13.9386 180.979 14.2573 181.557 15.0441 181.628 16.2991 181.648 16.7515 181.573 17.2747 181.404 17.8727 181.002 19.3008 180.373 20.3473 179.515 21.0201 178.658 21.6889 177.513 22.0233 176.085 22.0233H166.69L170.99 6.73123 170.998 6.72729ZM177.662 17.2118C177.906 16.3384 177.595 15.9017 176.722 15.9017H172.351L171.49 18.9625H175.86C176.734 18.9625 177.292 18.5258 177.54 17.6524L177.662 17.2157V17.2118ZM178.724 11.0942C178.968 10.2208 178.658 9.78413 177.784 9.78413H174.07L173.209 12.841H176.923C177.796 12.841 178.355 12.4043 178.603 11.5309L178.724 11.0942Z" fill="white"/><path d="M193.833 22.0193H182.206L186.506 6.72729H198.133L197.271 9.78413H189.575L188.745 12.7347H194.69L193.829 15.7916H187.883L186.994 18.9586H194.69L193.829 22.0154 193.833 22.0193Z" fill="white"/><path d="M203.3 22.0193H199.366L202.808 9.78413H198.221L199.083 6.72729H212.191L211.33 9.78413H206.742L203.3 22.0193Z" fill="white"/></svg></span>
     </div>
-    <div class="login-title">Affiliate Performance Tracker</div>
-    <div class="login-sub">Accedi con le credenziali fornite dall'amministratore</div>
+    <div class="login-title" data-i18n="appTitle">Affiliate Performance Tracker</div>
+    <div class="login-sub" data-i18n="loginSubtitle">Accedi con le credenziali fornite dall'amministratore</div>
     <div class="login-field">
-      <label>Email</label>
+      <label data-i18n="email">Email</label>
       <input type="email" id="login-email" placeholder="nome@marathonbet.it" autocomplete="email">
     </div>
     <div class="login-field">
-      <label>Password</label>
+      <label data-i18n="password">Password</label>
       <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
     </div>
-    <button class="login-btn" id="login-btn" onclick="doLogin()">Accedi</button>
+    <button class="login-btn" id="login-btn" onclick="doLogin()" data-i18n="login">Accedi</button>
     <div class="login-error" id="login-error"></div>
   </div>
 </div>
@@ -341,27 +349,31 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
 <path d="M203.3 22.0193H199.366L202.808 9.78413H198.221L199.083 6.72729H212.191L211.33 9.78413H206.742L203.3 22.0193Z" fill="white"/>
 </svg></span>
     </a>
-      <span class="header-title">Affiliate Performance Tracker</span>
+      <span class="header-title" data-i18n="appTitle">Affiliate Performance Tracker</span>
     </div>
     <div class="header-right">
       <div class="live-pill"><span class="live-dot"></span> ADM • Italia</div>
-      <div class="sync-status"><span class="sync-dot" id="sync-dot"></span><span id="sync-txt">Sincronizzato</span></div>
+      <div class="sync-status"><span class="sync-dot" id="sync-dot"></span><span id="sync-txt" data-i18n="synced">Sincronizzato</span></div>
       <div class="user-pill" id="user-pill" style="cursor:pointer" onclick="doLogout()" title="Clicca per uscire">
-        <span id="user-pill-email"></span> <span style="opacity:.6;font-size:10px">✕ esci</span>
+        <span id="user-pill-email"></span> <span style="opacity:.6;font-size:10px" data-i18n="logout">✕ esci</span>
+      </div>
+      <div class="lang-toggle">
+        <button id="lang-it" onclick="setLang('it')" class="active">IT</button>
+        <button id="lang-en" onclick="setLang('en')">EN</button>
       </div>
       <button class="header-btn theme-toggle-btn" onclick="toggleTheme()" id="theme-btn" title="Cambia tema">
-        <span id="theme-icon">☀️</span> Light
+        <span id="theme-icon">☀️</span> <span data-i18n="light">Light</span>
       </button>
-      <button class="header-btn" onclick="exportXLSX()">⬇ Esporta Excel</button>
+      <button class="header-btn" onclick="exportXLSX()" data-i18n="exportExcel">⬇ Esporta Excel</button>
     </div>
   </div>
 </header>
 
 <div class="tabs">
-  <button class="tab active" onclick="switchTab('overview',this)">📊 Overview</button>
+  <button class="tab active" onclick="switchTab('overview',this)" data-i18n="tabOverview">📊 Overview</button>
   <button class="tab" 
-  <button class="tab" onclick="switchTab('categorie',this)">🎰 Categorie</button>
-  <button class="tab" onclick="switchTab('trend',this)">📈 Performance</button>
+  <button class="tab" onclick="switchTab('categorie',this)" data-i18n="tabCategorie">🎰 Categorie</button>
+  <button class="tab" onclick="switchTab('trend',this)" data-i18n="tabPerformance">📈 Performance</button>
   <button class="tab" onclick="switchTab('upload',this)">⬆ Carica dati <span class="tab-count" id="months-badge">0</span></button>
 </div>
 
@@ -373,20 +385,20 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
     <!-- FILTRI OVERVIEW -->
     <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
-        <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase">Filtri overview</div>
+        <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase" data-i18n="filtersOverview">Filtri overview</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-          <select class="tbl-select" id="ov-range-from" onchange="onOvRangeChange()"><option value="">Da...</option></select>
+          <select class="tbl-select" id="ov-range-from" onchange="onOvRangeChange()"><option value="" data-i18n="from">Da...</option></select>
           <span style="color:var(--text3);font-size:12px">→</span>
-          <select class="tbl-select" id="ov-range-to" onchange="onOvRangeChange()"><option value="">A...</option></select>
-          <select class="tbl-select" id="ov-cat-filter" onchange="renderOverview()"><option value="">Tutti i prodotti</option></select>
-          <select class="tbl-select" id="ov-net-filter" onchange="renderOverview()"><option value="">Tutte le reti</option></select>
-          <button class="metric-toggle" onclick="ovSelectAll()" style="font-size:11px">Tutti i mesi</button>
-          <button class="metric-toggle" onclick="ovSelectNone()" style="font-size:11px">Nessuno</button>
+          <select class="tbl-select" id="ov-range-to" onchange="onOvRangeChange()"><option value="" data-i18n="to">A...</option></select>
+          <select class="tbl-select" id="ov-cat-filter" onchange="renderOverview()"><option value="" data-i18n="allProducts">Tutti i prodotti</option></select>
+          <select class="tbl-select" id="ov-net-filter" onchange="renderOverview()"><option value="" data-i18n="allNetworks">Tutte le reti</option></select>
+          <button class="metric-toggle" onclick="ovSelectAll()" style="font-size:11px" data-i18n="allMonths">Tutti i mesi</button>
+          <button class="metric-toggle" onclick="ovSelectNone()" style="font-size:11px" data-i18n="none">Nessuno</button>
         </div>
       </div>
       <div style="display:flex;gap:10px;align-items:center;margin-top:10px">
-        <input class="tbl-search" id="ov-search" placeholder="🔍 Cerca affiliato..." oninput="renderOverview()" style="flex:1;max-width:280px">
-        <button class="export-btn" onclick="exportXLSX()">⬇ Excel</button>
+        <input class="tbl-search" id="ov-search" placeholder="🔍 Cerca affiliato..." data-i18n-placeholder="searchAffiliate" oninput="renderOverview()" style="flex:1;max-width:280px">
+        <button class="export-btn" onclick="exportXLSX()" data-i18n="exportExcelShort">⬇ Excel</button>
       </div>
       <div id="pills-overview" class="month-pills" style="margin-bottom:0;margin-top:10px"></div>
     </div>
@@ -397,17 +409,17 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
       <div class="chart-card" id="card-top-cali" style="padding:16px 20px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <div class="chart-card-title" style="margin-bottom:0">⚠️ Top 5 cali — giocato</div>
+          <div class="chart-card-title" style="margin-bottom:0" data-i18n="top5Cali">⚠️ Top 5 cali — giocato</div>
           <div style="display:flex;gap:6px">
-            <button class="metric-toggle active" id="cali-mode-prev" onclick="setCaliMode('prev')" style="font-size:10px;padding:3px 8px">vs mese prec.</button>
-            <button class="metric-toggle" id="cali-mode-first" onclick="setCaliMode('first')" style="font-size:10px;padding:3px 8px">vs inizio periodo</button>
+            <button class="metric-toggle active" id="cali-mode-prev" onclick="setCaliMode('prev')" style="font-size:10px;padding:3px 8px" data-i18n="vsMesePrec">vs mese prec.</button>
+            <button class="metric-toggle" id="cali-mode-first" onclick="setCaliMode('first')" style="font-size:10px;padding:3px 8px" data-i18n="vsInizioPeriodo">vs inizio periodo</button>
           </div>
         </div>
         <div id="cali-list"></div>
       </div>
       <div class="chart-card" id="card-top-crescite" style="padding:16px 20px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <div class="chart-card-title" style="margin-bottom:0">🚀 Top 5 crescite — giocato</div>
+          <div class="chart-card-title" style="margin-bottom:0" data-i18n="top5Crescite">🚀 Top 5 crescite — giocato</div>
         </div>
         <div id="crescite-list"></div>
       </div>
@@ -418,11 +430,11 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
 
     <div class="charts-grid">
       <div class="chart-card">
-        <div class="chart-card-title">Top 5 affiliati per GGR</div>
+        <div class="chart-card-title" data-i18n="top5AffiliatiGGR">Top 5 affiliati per GGR</div>
         <div style="position:relative;height:220px"><canvas id="chart-top5" role="img" aria-label="Top 5 affiliati GGR"></canvas></div>
       </div>
       <div class="chart-card">
-        <div class="chart-card-title">Mix GGR per categoria</div>
+        <div class="chart-card-title" data-i18n="mixGGRCategoria">Mix GGR per categoria</div>
         <div style="position:relative;height:220px"><canvas id="chart-mix" role="img" aria-label="Mix GGR per categoria"></canvas></div>
       </div>
     </div>
@@ -435,24 +447,24 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
     <!-- SELEZIONE MESI -->
     <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
-        <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase">Seleziona periodo</div>
+        <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase" data-i18n="selezionaPeriodo">Seleziona periodo</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-          <select class="tbl-select" id="cat-range-from" onchange="onCatRangeChange()"><option value="">Da...</option></select>
+          <select class="tbl-select" id="cat-range-from" onchange="onCatRangeChange()"><option value="" data-i18n="from">Da...</option></select>
           <span style="color:var(--text3);font-size:12px">→</span>
-          <select class="tbl-select" id="cat-range-to" onchange="onCatRangeChange()"><option value="">A...</option></select>
-          <button class="metric-toggle" onclick="catSelectAll()" style="font-size:11px">Tutti</button>
-          <button class="metric-toggle" onclick="catSelectNone()" style="font-size:11px">Nessuno</button>
+          <select class="tbl-select" id="cat-range-to" onchange="onCatRangeChange()"><option value="" data-i18n="to">A...</option></select>
+          <button class="metric-toggle" onclick="catSelectAll()" style="font-size:11px" data-i18n="tutti">Tutti</button>
+          <button class="metric-toggle" onclick="catSelectNone()" style="font-size:11px" data-i18n="none">Nessuno</button>
         </div>
       </div>
       <div id="pills-cat" class="month-pills" style="margin-bottom:0"></div>
     </div>
     <div class="charts-grid">
       <div class="chart-card">
-        <div class="chart-card-title">GGR per categoria</div>
+        <div class="chart-card-title" data-i18n="ggrPerCategoria">GGR per categoria</div>
         <div style="position:relative;height:260px"><canvas id="chart-cat-bar" role="img" aria-label="GGR per categoria"></canvas></div>
       </div>
       <div class="chart-card">
-        <div class="chart-card-title">Payout % medio per categoria</div>
+        <div class="chart-card-title" data-i18n="payoutMedioCategoria">Payout % medio per categoria</div>
         <div style="position:relative;height:260px"><canvas id="chart-cat-payout" role="img" aria-label="Payout percentuale per categoria"></canvas></div>
       </div>
     </div>
@@ -463,35 +475,35 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
   <div id="tab-trend" class="panel">
 
     <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:16px">
-      <div style="font-size:10px;font-weight:700;color:var(--slate3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px">Filtri</div>
+      <div style="font-size:10px;font-weight:700;color:var(--slate3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px" data-i18n="filtersOverview">Filtri</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
-        <div><label class="field-label">Da mese</label>
-          <select class="tbl-select" id="g-from" onchange="renderGrafico()"><option value="">Inizio</option></select></div>
-        <div><label class="field-label">A mese</label>
-          <select class="tbl-select" id="g-to" onchange="renderGrafico()"><option value="">Fine</option></select></div>
-        <div><label class="field-label">Prodotto</label>
-          <select class="tbl-select" id="g-cat" onchange="renderGrafico()"><option value="">Tutti i prodotti</option></select></div>
-        <div><label class="field-label">Cerca affiliato</label>
-          <input class="tbl-search" id="g-search" placeholder="Codice o ragione sociale..." oninput="renderGrafico()" style="width:220px"></div>
-        <div><label class="field-label">Top N</label>
+        <div><label class="field-label" data-i18n="daMese">Da mese</label>
+          <select class="tbl-select" id="g-from" onchange="renderGrafico()"><option value="" data-i18n="inizio">Inizio</option></select></div>
+        <div><label class="field-label" data-i18n="aMese">A mese</label>
+          <select class="tbl-select" id="g-to" onchange="renderGrafico()"><option value="" data-i18n="fine">Fine</option></select></div>
+        <div><label class="field-label" data-i18n="prodotto">Prodotto</label>
+          <select class="tbl-select" id="g-cat" onchange="renderGrafico()"><option value="" data-i18n="allProducts">Tutti i prodotti</option></select></div>
+        <div><label class="field-label" data-i18n="cercaAffiliato">Cerca affiliato</label>
+          <input class="tbl-search" id="g-search" placeholder="Codice o ragione sociale..." data-i18n-placeholder="codiceORagioneSociale" oninput="renderGrafico()" style="width:220px"></div>
+        <div><label class="field-label" data-i18n="topN">Top N</label>
           <select class="tbl-select" id="g-topn" onchange="renderGrafico()">
-            <option value="0">Tutti</option>
+            <option value="0" data-i18n="tutti">Tutti</option>
             <option value="10" selected>Top 10</option>
             <option value="20">Top 20</option>
             <option value="5">Top 5</option>
           </select></div>
-        <div><label class="field-label">Soglia minima rake (mese iniziale)</label>
+        <div><label class="field-label" data-i18n="sogliaMinRakeIniziale">Soglia minima rake (mese iniziale)</label>
           <input type="number" class="tbl-search" id="g-min-first" placeholder="es. 500" oninput="renderGrafico()" style="width:140px;text-align:right" min="0" step="100"></div>
-        <div><label class="field-label">Soglia minima rake (mese finale)</label>
+        <div><label class="field-label" data-i18n="sogliaMinRakeFinale">Soglia minima rake (mese finale)</label>
           <input type="number" class="tbl-search" id="g-min-last" placeholder="es. 500" oninput="renderGrafico()" style="width:140px;text-align:right" min="0" step="100"></div>
-        <div><label class="field-label">Filtra per calo %</label>
+        <div><label class="field-label" data-i18n="filtraPerCalo">Filtra per calo %</label>
           <select class="tbl-select" id="g-calo-filter" onchange="renderGrafico()">
-            <option value="">Tutti</option>
-            <option value="-10">Calo > 10%</option>
-            <option value="-25">Calo > 25%</option>
-            <option value="-50">Calo > 50%</option>
-            <option value="10">Crescita > 10%</option>
-            <option value="25">Crescita > 25%</option>
+            <option value="" data-i18n="tutti">Tutti</option>
+            <option value="-10" data-i18n="caloMaggiore10">Calo > 10%</option>
+            <option value="-25" data-i18n="caloMaggiore25">Calo > 25%</option>
+            <option value="-50" data-i18n="caloMaggiore50">Calo > 50%</option>
+            <option value="10" data-i18n="crescitaMaggiore10">Crescita > 10%</option>
+            <option value="25" data-i18n="crescitaMaggiore25">Crescita > 25%</option>
           </select></div>
       </div>
     </div>
@@ -500,10 +512,10 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
       <div style="padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <div style="font-size:11px;font-weight:700;color:var(--slate3);letter-spacing:.08em;text-transform:uppercase" id="g-pivot-title">Performance mensile affiliati</div>
         <div style="display:flex;gap:6px;align-items:center">
-          <span style="font-size:11px;color:var(--slate3);margin-right:2px">Mostra:</span>
-          <button id="g-show-rake" onclick="toggleMetricCol('rake')" class="metric-toggle active">Rake</button>
-          <button id="g-show-turnover" onclick="toggleMetricCol('turnover')" class="metric-toggle">Giocato</button>
-          <button id="g-show-conti" onclick="toggleMetricCol('conti')" class="metric-toggle">Conti attivi</button>
+          <span style="font-size:11px;color:var(--slate3);margin-right:2px" data-i18n="mostra">Mostra:</span>
+          <button id="g-show-rake" onclick="toggleMetricCol('rake')" class="metric-toggle active" data-i18n="btnRake">Rake</button>
+          <button id="g-show-turnover" onclick="toggleMetricCol('turnover')" class="metric-toggle" data-i18n="btnGiocato">Giocato</button>
+          <button id="g-show-conti" onclick="toggleMetricCol('conti')" class="metric-toggle" data-i18n="btnContiAttivi">Conti attivi</button>
         </div>
       </div>
       <div id="g-pivot" style="overflow-x:auto"></div>
@@ -516,33 +528,33 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
     <div class="upload-zone" onclick="document.getElementById('file-input').click()">
       <input type="file" id="file-input" accept=".xlsx,.xls,.csv" onchange="handleFile(event)">
       <div class="upload-icon">📂</div>
-      <div class="upload-title">Carica export mensile</div>
-      <div class="upload-sub">Trascina qui il file .xlsx o .csv (formato export_grid_stat_all)</div>
+      <div class="upload-title" data-i18n="caricaExportMensile">Carica export mensile</div>
+      <div class="upload-sub" data-i18n="trasciaFile">Trascina qui il file .xlsx o .csv (formato export_grid_stat_all)</div>
     </div>
     <div class="upload-row">
       <div>
-        <label class="field-label">Mese di riferimento</label>
+        <label class="field-label" data-i18n="meseRiferimento">Mese di riferimento</label>
         <input type="month" id="month-input" class="field-input">
       </div>
       <div>
-        <label class="field-label">Tipo periodo</label>
+        <label class="field-label" data-i18n="tipoPeriodo">Tipo periodo</label>
         <select id="period-input" class="field-input">
-          <option value="mensile">Mensile</option>
-          <option value="settimanale">Settimanale</option>
+          <option value="mensile" data-i18n="mensile">Mensile</option>
+          <option value="settimanale" data-i18n="settimanale">Settimanale</option>
         </select>
       </div>
     </div>
     <div id="preview-zone" style="display:none;margin-bottom:20px">
-      <div class="section-label">Anteprima dati</div>
+      <div class="section-label" data-i18n="anteprimaDati">Anteprima dati</div>
       <div id="preview-content" class="preview-box"></div>
       <div id="preview-table-wrap" class="table-wrap" style="margin-bottom:16px"></div>
       <div style="display:flex;gap:10px">
-        <button class="btn-confirm" onclick="confirmUpload()">✓ Conferma e salva</button>
-        <button class="btn-cancel" onclick="cancelUpload()">Annulla</button>
+        <button class="btn-confirm" onclick="confirmUpload()" data-i18n="confermaSalva">✓ Conferma e salva</button>
+        <button class="btn-cancel" onclick="cancelUpload()" data-i18n="annulla">Annulla</button>
       </div>
     </div>
     <div id="months-list-section">
-      <div class="section-label">Mesi caricati</div>
+      <div class="section-label" data-i18n="mesiCaricati">Mesi caricati</div>
       <div class="table-wrap"><div id="months-list-body"></div></div>
     </div>
   </div>
@@ -574,10 +586,344 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
 <path fill-rule="evenodd" clip-rule="evenodd" d="M133.726 5.87082C137.091 5.85143 138.161 8.00808 137.354 10.9019L135.081 19.0542C134.599 20.7783 133.739 22.1364 132.495 23.1149C131.25 24.0933 129.762 24.5842 128.041 24.5842H122.319C118.954 24.6036 117.884 22.4469 118.691 19.5531L120.966 11.4008C121.446 9.67674 122.305 8.31863 123.55 7.34015C124.795 6.36167 126.283 5.87082 128.005 5.87082H133.726ZM127.996 10.536C127.079 10.536 126.491 10.9989 126.236 11.9192C125.579 14.3058 124.817 16.8948 124.154 19.2759C124.088 19.5143 124.088 19.6779 124.154 19.7694C124.221 19.8608 124.373 19.905 124.609 19.905L127.749 19.9218H128.052C128.972 19.9217 129.559 19.4587 129.812 18.5385C130.469 16.1519 131.231 13.5629 131.893 11.1818C131.96 10.9462 131.96 10.7798 131.893 10.6884C131.827 10.5997 131.674 10.5528 131.439 10.5528L128.298 10.536H127.996Z" fill="white"/>
 <path d="M146.865 5.79611C147.117 5.79618 147.269 6.00132 147.2 6.25629L147.097 6.54999L146.817 7.26517H146.878C147.735 6.51956 149.021 5.80724 150.177 5.80721H153.245C156.61 5.78781 157.689 7.93595 156.899 10.8243C155.829 14.7267 154.796 18.6059 153.728 22.4747L153.265 24.1321C153.198 24.3816 152.941 24.5842 152.691 24.5842H148.051C147.801 24.5842 147.655 24.3816 147.721 24.1321L151.23 11.1042C151.355 10.6469 151.258 10.4751 150.773 10.4751H146.063L142.238 24.1321C142.169 24.3816 141.911 24.5842 141.662 24.5842H137.021C136.772 24.5842 136.622 24.3816 136.692 24.1321L141.573 6.25629C141.639 6.00127 141.903 5.79611 142.155 5.79611H146.865Z" fill="white"/>
 <path d="M165.703 0.731207C165.823 0.299191 166.216 0 166.664 0H215.417C217.722 0 219.393 2.19567 218.779 4.41733L211.94 29.1683C211.821 29.6003 211.428 29.8995 210.98 29.8995H162.227C159.922 29.8995 158.25 27.7038 158.864 25.4822L165.703 0.731207Z" fill="#FF3E5A"/></svg></div>
-  <div class="footer-info">
+  <div class="footer-info" data-i18n="footerInfo">Affiliate Performance Tracker — uso interno</div>
+  <div class="footer-adm" data-i18n="admConcession">🔒 ADM concessione</div>
 </footer>
 <script>
 /* ════ APP FUNCTIONS ════ */
+/* ════════════════════════════════════════════════════
+   I18N — Internazionalizzazione IT / EN
+   ════════════════════════════════════════════════════ */
+const I18N = {
+  it: {
+    appTitle: 'Affiliate Performance Tracker',
+    loginSubtitle: "Accedi con le credenziali fornite dall'amministratore",
+    email: 'Email',
+    password: 'Password',
+    login: 'Accedi',
+    loggingIn: 'Accesso in corso...',
+    invalidCredentials: 'Credenziali non valide',
+    tooManyAttempts: 'Troppi tentativi. Riprova tra qualche minuto.',
+    fillEmailPassword: 'Inserisci email e password',
+    synced: 'Sincronizzato',
+    syncing: 'Sincronizzazione...',
+    syncError: 'Errore sync',
+    logout: 'esci',
+    light: 'Light',
+    dark: 'Dark',
+    exportExcel: '⬇ Esporta Excel',
+    exportExcelShort: '⬇ Excel',
+    admConcession: 'ADM concessione',
+    footerInfo: 'Affiliate Performance Tracker — uso interno',
+    tabOverview: '📊 Overview',
+    tabCategorie: '🎰 Categorie',
+    tabPerformance: '📈 Performance',
+    tabUpload: '⬆ Carica dati',
+    /* overview filters */
+    filtersOverview: 'Filtri overview',
+    from: 'Da...',
+    to: 'A...',
+    allProducts: 'Tutti i prodotti',
+    allNetworks: 'Tutte le reti',
+    allMonths: 'Tutti i mesi',
+    none: 'Nessuno',
+    searchAffiliate: '🔍 Cerca affiliato...',
+    /* KPI labels */
+    kpiRakeTotal: 'Rake totale',
+    kpiGiocato: 'Giocato',
+    kpiVinto: 'Vinto',
+    kpiBonus: 'Spesa bonus',
+    kpiPayoutMedio: 'Payout medio',
+    kpiAffiliatiAttivi: 'Affiliati attivi',
+    kpiContiAttivi: 'Conti attivi',
+    kpiTicketTotali: 'Ticket totali',
+    kpiAffiliatiInattivi: 'Affiliati inattivi',
+    vsMesePrecedente: 'vs mese prec.',
+    /* cali/crescite widget */
+    top5Cali: '⚠️ Top 5 cali — giocato',
+    top5Crescite: '🚀 Top 5 crescite — giocato',
+    vsMesePrec: 'vs mese prec.',
+    vsInizioPeriodo: 'vs inizio periodo',
+    select2Months: 'Seleziona almeno 2 mesi',
+    needPrevMonth: 'Serve un mese di riferimento precedente',
+    noSignificantData: 'Nessun dato significativo',
+    nuoviAffiliati: '🆕 nuovi affiliati rispetto a',
+    /* charts */
+    top5AffiliatiGGR: 'Top 5 affiliati per GGR',
+    mixGGRCategoria: 'Mix GGR per categoria',
+    ggrPerCategoria: 'GGR per categoria',
+    payoutMedioCategoria: 'Payout % medio per categoria',
+    /* table headers */
+    thRank: '#',
+    thAffiliato: 'Affiliato',
+    thCodAffiliato: 'Cod. affiliato',
+    thRagioneSociale: 'Ragione sociale',
+    thRete: 'Rete',
+    thGGR: 'GGR',
+    thRake: 'Rake',
+    thGiocato: 'Giocato',
+    thVinto: 'Vinto',
+    thBonus: 'Bonus',
+    thPayout: 'Payout %',
+    thContiAttivi: 'Conti attivi',
+    thTicket: 'Ticket',
+    thCategoria: 'Categoria',
+    thTop3Affiliati: 'Top 3 affiliati',
+    rankingAffiliati: 'Ranking affiliati',
+    /* categorie tab */
+    selezionaPeriodo: 'Seleziona periodo',
+    tutti: 'Tutti',
+    nessunDatoCategoria: 'Nessun dato disponibile',
+    nessunDatoPeriodo: 'Nessun dato per i mesi selezionati',
+    /* performance tab */
+    daMese: 'Da mese',
+    inizio: 'Inizio',
+    aMese: 'A mese',
+    fine: 'Fine',
+    prodotto: 'Prodotto',
+    cercaAffiliato: 'Cerca affiliato',
+    codiceORagioneSociale: 'Codice o ragione sociale...',
+    topN: 'Top N',
+    sogliaMinRakeIniziale: 'Soglia minima rake (mese iniziale)',
+    sogliaMinRakeFinale: 'Soglia minima rake (mese finale)',
+    filtraPerCalo: 'Filtra per calo %',
+    caloMaggiore10: 'Calo > 10%',
+    caloMaggiore25: 'Calo > 25%',
+    caloMaggiore50: 'Calo > 50%',
+    crescitaMaggiore10: 'Crescita > 10%',
+    crescitaMaggiore25: 'Crescita > 25%',
+    btnRake: 'Rake',
+    btnGiocato: 'Giocato',
+    btnContiAttivi: 'Conti attivi',
+    mostra: 'Mostra:',
+    nessunMesePeriodo: 'Nessun mese nel periodo selezionato',
+    deltaRakePeriodo: 'Δ Rake periodo',
+    deltaGiocatoPeriodo: 'Δ Giocato periodo',
+    deltaContiPeriodo: 'Δ Conti periodo',
+    totaleRake: 'Rake tot.',
+    totaleGiocato: 'Giocato tot.',
+    /* upload tab */
+    caricaExportMensile: 'Carica export mensile',
+    trasciaFile: 'Trascina qui il file .xlsx o .csv (formato export_grid_stat_all)',
+    meseRiferimento: 'Mese di riferimento',
+    tipoPeriodo: 'Tipo periodo',
+    mensile: 'Mensile',
+    settimanale: 'Settimanale',
+    mesiCaricati: 'Mesi caricati',
+    nessunMeseCaricato: 'Nessun mese caricato',
+    elimina: 'Elimina',
+    confermaSalva: '✓ Conferma e salva',
+    annulla: 'Annulla',
+    selezionaMese: 'Seleziona il mese di riferimento',
+    datiSalvati: '✓ Dati salvati per',
+    eliminareIDati: 'Eliminare i dati di',
+    righe: 'Righe',
+    affiliati: 'Affiliati',
+    ggrTotale: 'GGR totale',
+    /* popup */
+    payoutMedio: 'Payout medio',
+    ticketTotali: 'Ticket totali',
+    periodo: 'Periodo',
+    mese: 'Mese',
+    delta: 'Δ',
+    tendenza: 'Tendenza',
+    breakdownPerProdotto: 'Breakdown per prodotto',
+    /* empty states */
+    anteprimaDati: 'Anteprima dati',
+    nessunDatoCaricato: 'Nessun dato caricato.',
+    vaiSuCaricaDati: 'Vai su',
+    perIniziare: 'per iniziare.',
+    nessunDatoFiltro: 'Nessun dato per il periodo/filtri selezionati',
+  },
+  en: {
+    appTitle: 'Affiliate Performance Tracker',
+    loginSubtitle: 'Sign in with the credentials provided by your administrator',
+    email: 'Email',
+    password: 'Password',
+    login: 'Sign in',
+    loggingIn: 'Signing in...',
+    invalidCredentials: 'Invalid credentials',
+    tooManyAttempts: 'Too many attempts. Try again in a few minutes.',
+    fillEmailPassword: 'Enter email and password',
+    synced: 'Synced',
+    syncing: 'Syncing...',
+    syncError: 'Sync error',
+    logout: 'log out',
+    light: 'Light',
+    dark: 'Dark',
+    exportExcel: '⬇ Export Excel',
+    exportExcelShort: '⬇ Excel',
+    admConcession: 'ADM license',
+    footerInfo: 'Affiliate Performance Tracker — internal use',
+    tabOverview: '📊 Overview',
+    tabCategorie: '🎰 Categories',
+    tabPerformance: '📈 Performance',
+    tabUpload: '⬆ Upload data',
+    /* overview filters */
+    filtersOverview: 'Overview filters',
+    from: 'From...',
+    to: 'To...',
+    allProducts: 'All products',
+    allNetworks: 'All networks',
+    allMonths: 'All months',
+    none: 'None',
+    searchAffiliate: '🔍 Search affiliate...',
+    /* KPI labels */
+    kpiRakeTotal: 'Total rake',
+    kpiGiocato: 'Turnover',
+    kpiVinto: 'Won',
+    kpiBonus: 'Bonus spend',
+    kpiPayoutMedio: 'Avg payout',
+    kpiAffiliatiAttivi: 'Active affiliates',
+    kpiContiAttivi: 'Active accounts',
+    kpiTicketTotali: 'Total tickets',
+    kpiAffiliatiInattivi: 'Inactive affiliates',
+    vsMesePrecedente: 'vs prev. month',
+    /* cali/crescite widget */
+    top5Cali: '⚠️ Top 5 declines — turnover',
+    top5Crescite: '🚀 Top 5 growth — turnover',
+    vsMesePrec: 'vs prev. month',
+    vsInizioPeriodo: 'vs period start',
+    select2Months: 'Select at least 2 months',
+    needPrevMonth: 'A reference month before this period is needed',
+    noSignificantData: 'No significant data',
+    nuoviAffiliati: '🆕 new affiliates vs',
+    /* charts */
+    top5AffiliatiGGR: 'Top 5 affiliates by GGR',
+    mixGGRCategoria: 'GGR mix by category',
+    ggrPerCategoria: 'GGR by category',
+    payoutMedioCategoria: 'Avg payout % by category',
+    /* table headers */
+    thRank: '#',
+    thAffiliato: 'Affiliate',
+    thCodAffiliato: 'Affiliate code',
+    thRagioneSociale: 'Company name',
+    thRete: 'Network',
+    thGGR: 'GGR',
+    thRake: 'Rake',
+    thGiocato: 'Turnover',
+    thVinto: 'Won',
+    thBonus: 'Bonus',
+    thPayout: 'Payout %',
+    thContiAttivi: 'Active accounts',
+    thTicket: 'Tickets',
+    thCategoria: 'Category',
+    thTop3Affiliati: 'Top 3 affiliates',
+    rankingAffiliati: 'Affiliate ranking',
+    /* categorie tab */
+    selezionaPeriodo: 'Select period',
+    tutti: 'All',
+    nessunDatoCategoria: 'No data available',
+    nessunDatoPeriodo: 'No data for the selected months',
+    /* performance tab */
+    daMese: 'From month',
+    inizio: 'Start',
+    aMese: 'To month',
+    fine: 'End',
+    prodotto: 'Product',
+    cercaAffiliato: 'Search affiliate',
+    codiceORagioneSociale: 'Code or company name...',
+    topN: 'Top N',
+    sogliaMinRakeIniziale: 'Min rake threshold (start month)',
+    sogliaMinRakeFinale: 'Min rake threshold (end month)',
+    filtraPerCalo: 'Filter by % change',
+    caloMaggiore10: 'Decline > 10%',
+    caloMaggiore25: 'Decline > 25%',
+    caloMaggiore50: 'Decline > 50%',
+    crescitaMaggiore10: 'Growth > 10%',
+    crescitaMaggiore25: 'Growth > 25%',
+    btnRake: 'Rake',
+    btnGiocato: 'Turnover',
+    btnContiAttivi: 'Active accounts',
+    mostra: 'Show:',
+    nessunMesePeriodo: 'No months in the selected period',
+    deltaRakePeriodo: 'Δ Rake (period)',
+    deltaGiocatoPeriodo: 'Δ Turnover (period)',
+    deltaContiPeriodo: 'Δ Accounts (period)',
+    totaleRake: 'Total rake',
+    totaleGiocato: 'Total turnover',
+    /* upload tab */
+    caricaExportMensile: 'Upload monthly export',
+    trasciaFile: 'Drop the .xlsx or .csv file here (export_grid_stat_all format)',
+    meseRiferimento: 'Reference month',
+    tipoPeriodo: 'Period type',
+    mensile: 'Monthly',
+    settimanale: 'Weekly',
+    mesiCaricati: 'Uploaded months',
+    nessunMeseCaricato: 'No month uploaded yet',
+    elimina: 'Delete',
+    confermaSalva: '✓ Confirm and save',
+    annulla: 'Cancel',
+    selezionaMese: 'Select the reference month',
+    datiSalvati: '✓ Data saved for',
+    eliminareIDati: 'Delete data for',
+    righe: 'Rows',
+    affiliati: 'Affiliates',
+    ggrTotale: 'Total GGR',
+    /* popup */
+    payoutMedio: 'Avg payout',
+    ticketTotali: 'Total tickets',
+    periodo: 'Period',
+    mese: 'Month',
+    delta: 'Δ',
+    tendenza: 'Trend',
+    breakdownPerProdotto: 'Breakdown by product',
+    /* empty states */
+    anteprimaDati: 'Data preview',
+    nessunDatoCaricato: 'No data uploaded yet.',
+    vaiSuCaricaDati: 'Go to',
+    perIniziare: 'to get started.',
+    nessunDatoFiltro: 'No data for the selected period/filters',
+  }
+};
+
+let currentLang = localStorage.getItem('mbt_lang') || 'it';
+
+function t(key){
+  return (I18N[currentLang] && I18N[currentLang][key]) || (I18N.it[key]) || key;
+}
+
+function setLang(lang){
+  currentLang = lang;
+  try{ localStorage.setItem('mbt_lang', lang); }catch(e){}
+  applyLangToDOM();
+  /* re-render dynamic content */
+  if(typeof renderOverview==='function') renderOverview();
+  if(typeof renderCategorie==='function') renderCategorie();
+  if(typeof renderGrafico==='function') renderGrafico();
+  if(typeof renderMonthsList==='function') renderMonthsList();
+}
+
+function applyLangToDOM(){
+  /* update lang toggle button states (header + login screen) */
+  ['lang-it','lang-it-login'].forEach(function(id){
+    const el=document.getElementById(id);
+    if(el) el.classList.toggle('active', currentLang==='it');
+  });
+  ['lang-en','lang-en-login'].forEach(function(id){
+    const el=document.getElementById(id);
+    if(el) el.classList.toggle('active', currentLang==='en');
+  });
+
+  /* static text nodes via data-i18n attribute */
+  document.querySelectorAll('[data-i18n]').forEach(function(el){
+    const key=el.getAttribute('data-i18n');
+    el.textContent=t(key);
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el){
+    const key=el.getAttribute('data-i18n-placeholder');
+    el.placeholder=t(key);
+  });
+  document.querySelectorAll('[data-i18n-html]').forEach(function(el){
+    const key=el.getAttribute('data-i18n-html');
+    el.innerHTML=t(key);
+  });
+
+  /* document title and html lang attribute */
+  document.title = 'Marathonbet — ' + t('appTitle');
+  document.documentElement.lang = currentLang;
+}
+
 let db={};
 let pendingData=null;
 let selOvMonth=null,selCatMonth=null;
@@ -706,7 +1052,7 @@ function renderOverview(){
   const ms=months();
   if(!ms.length){
     document.getElementById('kpi-overview').innerHTML='';
-    document.getElementById('tbl-overview').innerHTML='<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-text">Nessun dato caricato.<br>Vai su <strong>Carica dati</strong> per iniziare.</div></div>';
+    document.getElementById('tbl-overview').innerHTML='<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-text">'+t('nessunDatoCaricato')+'<br>'+t('vaiSuCaricaDati')+' <strong>'+t('tabUpload')+'</strong> '+t('perIniziare')+'</div></div>';
     return;
   }
 
@@ -753,7 +1099,7 @@ function renderOverview(){
   });
 
   if(!rows.length){
-    document.getElementById('kpi-overview').innerHTML='<div style="color:var(--text3);font-size:13px;padding:12px 0">Nessun dato per il periodo/filtri selezionati</div>';
+    document.getElementById('kpi-overview').innerHTML='<div style="color:var(--text3);font-size:13px;padding:12px 0">'+t('nessunDatoFiltro')+'</div>';
     document.getElementById('tbl-overview').innerHTML='';
     return;
   }
@@ -822,18 +1168,18 @@ function renderOverview(){
   const prodLabel=selCatOv?(' — '+selCatOv):'';
 
   document.getElementById('kpi-overview').innerHTML=`
-    <div class="kpi-card"><div class="kpi-label">Rake totale</div><div class="kpi-value">${fe(totalRake)}</div>
-      ${rakeDelta!=null?`<div class="kpi-delta ${rakeDelta>=0?'delta-up':'delta-down'}">${rakeDelta>=0?'▲':'▼'} ${Math.abs(rakeDelta).toFixed(1)}% vs mese prec.</div>`:''}
+    <div class="kpi-card"><div class="kpi-label">${t('kpiRakeTotal')}</div><div class="kpi-value">${fe(totalRake)}</div>
+      ${rakeDelta!=null?`<div class="kpi-delta ${rakeDelta>=0?'delta-up':'delta-down'}">${rakeDelta>=0?'▲':'▼'} ${Math.abs(rakeDelta).toFixed(1)}% ${t('vsMesePrecedente')}</div>`:''}
       <div style="font-size:10px;color:var(--text3);margin-top:4px">${periodLabel}${prodLabel}</div>
     </div>
-    <div class="kpi-card"><div class="kpi-label">Giocato</div><div class="kpi-value">${fe(totalGiocato)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Vinto</div><div class="kpi-value">${fe(totalVinto)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Spesa bonus</div><div class="kpi-value" style="color:#fbbf24">${fe(totalBonus)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Payout medio</div><div class="kpi-value">${fp(payout)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Affiliati attivi</div><div class="kpi-value">${nAffs}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Conti attivi</div><div class="kpi-value">${fn(totalConti)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Ticket totali</div><div class="kpi-value">${fn(totalTickets)}</div></div>
-    <div class="kpi-card" style="${inactiveCount>0?'border-left:2px solid #f87171':''}"><div class="kpi-label">Affiliati inattivi</div><div class="kpi-value" style="${inactiveCount>0?'color:#f87171':''}">${inactiveCount}</div>
+    <div class="kpi-card"><div class="kpi-label">${t('kpiGiocato')}</div><div class="kpi-value">${fe(totalGiocato)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">${t('kpiVinto')}</div><div class="kpi-value">${fe(totalVinto)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">${t('kpiBonus')}</div><div class="kpi-value" style="color:#fbbf24">${fe(totalBonus)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">${t('kpiPayoutMedio')}</div><div class="kpi-value">${fp(payout)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">${t('kpiAffiliatiAttivi')}</div><div class="kpi-value">${nAffs}</div></div>
+    <div class="kpi-card"><div class="kpi-label">${t('kpiContiAttivi')}</div><div class="kpi-value">${fn(totalConti)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">${t('kpiTicketTotali')}</div><div class="kpi-value">${fn(totalTickets)}</div></div>
+    <div class="kpi-card" style="${inactiveCount>0?'border-left:2px solid #f87171':''}"><div class="kpi-label">${t('kpiAffiliatiInattivi')}</div><div class="kpi-value" style="${inactiveCount>0?'color:#f87171':''}">${inactiveCount}</div>
       ${inactiveCount>0?`<div style="font-size:10px;color:var(--text3);margin-top:4px">vs ${ml(refMonth)}</div>`:''}
     </div>
   `;
@@ -843,7 +1189,7 @@ function renderOverview(){
   if(newBoxEl){
     if(newCount>0){
       newBoxEl.style.display='block';
-      newBoxEl.innerHTML='<div style="font-size:12px;font-weight:700;color:#4ade80;margin-bottom:8px">🆕 '+newCount+' nuovi affiliati rispetto a '+ml(refMonth)+'</div>'+
+      newBoxEl.innerHTML='<div style="font-size:12px;font-weight:700;color:#4ade80;margin-bottom:8px">'+t('nuoviAffiliati').replace('🆕 ','🆕 '+newCount+' ')+' '+ml(refMonth)+'</div>'+
         '<div style="display:flex;flex-wrap:wrap;gap:8px">'+
         newList.slice(0,12).map(function(n){
           return '<span class="aff-code cali-aff-link" data-aff="'+n.aff+'" data-cm="'+refMonth+'" data-cu="'+lastSelMonth+'" style="cursor:pointer;font-size:12px;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.2);padding:3px 9px;border-radius:6px;color:#4ade80">'+n.aff+' · '+fe(n.rake)+'</span>';
@@ -899,18 +1245,18 @@ function renderOverview(){
 
   document.getElementById('tbl-overview').innerHTML=`
   <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;padding:12px 18px;border-bottom:1px solid var(--border)">
-    Ranking affiliati — ${periodLabel}${prodLabel}${q?' — ricerca: "'+q+'"':''}
+    ${t('rankingAffiliati')} — ${periodLabel}${prodLabel}${q?' — '+(currentLang==='en'?'search':'ricerca')+': "'+q+'"':''}
   </div>
   <table><thead><tr>
-    <th style="width:40px">#</th>
-    <th class="sortable" onclick="sortBy('overview','aff')">Affiliato ${si('overview','aff')}</th>
-    <th>Ragione sociale</th><th>Rete</th>
-    <th class="sortable" onclick="sortBy('overview','rake')">Rake ${si('overview','rake')}</th>
-    <th class="sortable" onclick="sortBy('overview','giocato')">Giocato ${si('overview','giocato')}</th>
-    <th class="sortable" onclick="sortBy('overview','vinto')">Vinto ${si('overview','vinto')}</th>
-    <th class="sortable" onclick="sortBy('overview','bonus')">Bonus ${si('overview','bonus')}</th>
-    <th class="sortable" onclick="sortBy('overview','payout')">Payout % ${si('overview','payout')}</th>
-    <th class="sortable" onclick="sortBy('overview','conti')">Conti attivi ${si('overview','conti')}</th>
+    <th style="width:40px">${t('thRank')}</th>
+    <th class="sortable" onclick="sortBy('overview','aff')">${t('thAffiliato')} ${si('overview','aff')}</th>
+    <th>${t('thRagioneSociale')}</th><th>${t('thRete')}</th>
+    <th class="sortable" onclick="sortBy('overview','rake')">${t('thRake')} ${si('overview','rake')}</th>
+    <th class="sortable" onclick="sortBy('overview','giocato')">${t('thGiocato')} ${si('overview','giocato')}</th>
+    <th class="sortable" onclick="sortBy('overview','vinto')">${t('thVinto')} ${si('overview','vinto')}</th>
+    <th class="sortable" onclick="sortBy('overview','bonus')">${t('thBonus')} ${si('overview','bonus')}</th>
+    <th class="sortable" onclick="sortBy('overview','payout')">${t('thPayout')} ${si('overview','payout')}</th>
+    <th class="sortable" onclick="sortBy('overview','conti')">${t('thContiAttivi')} ${si('overview','conti')}</th>
   </tr></thead><tbody>${affData.map(function(a,i){
     const py=a.giocato>0?(a.vinto/a.giocato*100):0;
     const bar=Math.round(a.rake/maxR*60);
@@ -1024,15 +1370,15 @@ function renderCategorie(){
   });
 
   document.getElementById('tbl-cat').innerHTML=`<table><thead><tr>
-    <th class="sortable" onclick="sortBy('cat','cat')">Categoria ${si('cat','cat')}</th>
-    <th class="sortable" onclick="sortBy('cat','rake')">Rake ${si('cat','rake')}</th>
-    <th class="sortable" onclick="sortBy('cat','giocato')">Giocato ${si('cat','giocato')}</th>
-    <th class="sortable" onclick="sortBy('cat','vinto')">Vinto ${si('cat','vinto')}</th>
-    <th class="sortable" onclick="sortBy('cat','bonus')">Bonus ${si('cat','bonus')}</th>
-    <th class="sortable" onclick="sortBy('cat','payout')">Payout % ${si('cat','payout')}</th>
-    <th class="sortable" onclick="sortBy('cat','tickets')">Ticket ${si('cat','tickets')}</th>
-    <th class="sortable" onclick="sortBy('cat','conti')">Conti attivi ${si('cat','conti')}</th>
-    <th>Top 3 affiliati</th>
+    <th class="sortable" onclick="sortBy('cat','cat')">${t('thCategoria')} ${si('cat','cat')}</th>
+    <th class="sortable" onclick="sortBy('cat','rake')">${t('thRake')} ${si('cat','rake')}</th>
+    <th class="sortable" onclick="sortBy('cat','giocato')">${t('thGiocato')} ${si('cat','giocato')}</th>
+    <th class="sortable" onclick="sortBy('cat','vinto')">${t('thVinto')} ${si('cat','vinto')}</th>
+    <th class="sortable" onclick="sortBy('cat','bonus')">${t('thBonus')} ${si('cat','bonus')}</th>
+    <th class="sortable" onclick="sortBy('cat','payout')">${t('thPayout')} ${si('cat','payout')}</th>
+    <th class="sortable" onclick="sortBy('cat','tickets')">${t('thTicket')} ${si('cat','tickets')}</th>
+    <th class="sortable" onclick="sortBy('cat','conti')">${t('thContiAttivi')} ${si('cat','conti')}</th>
+    <th>${t('thTop3Affiliati')}</th>
   </tr></thead><tbody>
   ${data.map(cat=>{
     const py=cat.giocato>0?(cat.vinto/cat.giocato*100):0;
@@ -1153,7 +1499,7 @@ function renderGrafico(){
 
   const filtMs = ms.filter(m=>m>=fromM&&m<=toM);
   if(!filtMs.length){
-    pEl.innerHTML='<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-text">Nessun mese nel periodo selezionato</div></div>';
+    pEl.innerHTML='<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-text">'+t('nessunMesePeriodo')+'</div></div>';
     return;
   }
 
@@ -1577,8 +1923,8 @@ function toggleTheme(){
   const isLight=document.body.classList.toggle('light');
   localStorage.setItem('mbt_theme', isLight?'light':'dark');
   const btn=document.getElementById('theme-btn');
-  if(isLight){btn.innerHTML='<span id="theme-icon">🌙</span> Dark';}
-  else{btn.innerHTML='<span id="theme-icon">☀️</span> Light';}
+  if(isLight){btn.innerHTML='<span id="theme-icon">🌙</span> '+t('dark');}
+  else{btn.innerHTML='<span id="theme-icon">☀️</span> '+t('light');}
   applyLogoTheme(isLight);
 }
 function initTheme(){
@@ -1658,7 +2004,7 @@ function showPreview(){
 
 function confirmUpload(){
   const m = document.getElementById('month-input').value;
-  if(!m){ alert('Seleziona il mese di riferimento'); return; }
+  if(!m){ alert(t('selezionaMese')); return; }
   db[m] = pendingData;
   saveDB();
   pendingData = null;
@@ -1666,7 +2012,7 @@ function confirmUpload(){
   document.getElementById('file-input').value = '';
   updateBadge();
   renderMonthsList();
-  showToast('✓ Dati salvati per ' + ml(m));
+  showToast(t('datiSalvati') + ' ' + ml(m));
 }
 
 function cancelUpload(){
@@ -1696,7 +2042,7 @@ function renderMonthsList(){
 }
 
 function deleteMonth(m){
-  if(!confirm('Eliminare i dati di '+ml(m)+'?')) return;
+  if(!confirm(t('eliminareIDati')+' '+ml(m)+'?')) return;
   delete db[m];
   saveDB();
   deleteMonthFromFirestore(m);
@@ -1750,20 +2096,20 @@ function openAffPopup(affCode, contextMonths, contextCat){
   /* ── KPI CARDS ── */
   var periodoLabel = ms.length===1 ? ml(ms[0]) : (ml(ms[0]) + ' → ' + ml(ms[ms.length-1]));
   var kpiHTML = '<div class="popup-kpi-grid">' +
-    '<div class="popup-kpi"><div class="popup-kpi-label">Rake totale</div><div class="popup-kpi-value">' + fe(totRake) + '</div></div>' +
-    '<div class="popup-kpi"><div class="popup-kpi-label">Giocato totale</div><div class="popup-kpi-value">' + fe(totGiocato) + '</div></div>' +
-    '<div class="popup-kpi"><div class="popup-kpi-label">Payout medio</div><div class="popup-kpi-value">' + fp(payout) + '</div></div>' +
-    '<div class="popup-kpi"><div class="popup-kpi-label">Spesa bonus</div><div class="popup-kpi-value" style="color:#fbbf24">' + fe(totBonus) + '</div></div>' +
-    '<div class="popup-kpi"><div class="popup-kpi-label">Conti attivi</div><div class="popup-kpi-value" style="color:#7dd3fc">' + fn(totConti) + '</div></div>' +
-    '<div class="popup-kpi"><div class="popup-kpi-label">Ticket totali</div><div class="popup-kpi-value">' + fn(totTickets) + '</div></div>' +
-    '<div class="popup-kpi" style="grid-column:span 2"><div class="popup-kpi-label">Periodo</div><div class="popup-kpi-value" style="font-size:13px;font-weight:500">' + periodoLabel + '</div></div>' +
+    '<div class="popup-kpi"><div class="popup-kpi-label">' + t('kpiRakeTotal') + '</div><div class="popup-kpi-value">' + fe(totRake) + '</div></div>' +
+    '<div class="popup-kpi"><div class="popup-kpi-label">' + t('thGiocato') + '</div><div class="popup-kpi-value">' + fe(totGiocato) + '</div></div>' +
+    '<div class="popup-kpi"><div class="popup-kpi-label">' + t('payoutMedio') + '</div><div class="popup-kpi-value">' + fp(payout) + '</div></div>' +
+    '<div class="popup-kpi"><div class="popup-kpi-label">' + t('kpiBonus') + '</div><div class="popup-kpi-value" style="color:#fbbf24">' + fe(totBonus) + '</div></div>' +
+    '<div class="popup-kpi"><div class="popup-kpi-label">' + t('kpiContiAttivi') + '</div><div class="popup-kpi-value" style="color:#7dd3fc">' + fn(totConti) + '</div></div>' +
+    '<div class="popup-kpi"><div class="popup-kpi-label">' + t('ticketTotali') + '</div><div class="popup-kpi-value">' + fn(totTickets) + '</div></div>' +
+    '<div class="popup-kpi" style="grid-column:span 2"><div class="popup-kpi-label">' + t('periodo') + '</div><div class="popup-kpi-value" style="font-size:13px;font-weight:500">' + periodoLabel + '</div></div>' +
     '</div>';
 
   /* ── MONTHLY TABLE ── */
   /* column grid: mese | rake | Δrake | giocato | conti | tendenza rake */
   var rowsHTML =
     '<div class="popup-month-row header" style="grid-template-columns:110px 1fr 60px 1fr 70px 1fr">' +
-      '<div>Mese</div><div>Rake</div><div>Δ</div><div>Giocato</div><div>Conti</div><div>Tendenza</div>' +
+      '<div>' + t('mese') + '</div><div>' + t('thRake') + '</div><div>' + t('delta') + '</div><div>' + t('thGiocato') + '</div><div>' + t('thContiAttivi') + '</div><div>' + t('tendenza') + '</div>' +
     '</div>';
 
   affRows.forEach(function(r, i){
@@ -1804,7 +2150,7 @@ function openAffPopup(affCode, contextMonths, contextCat){
     if(cats.length > 1){
       var maxCatRake = Math.max.apply(null, cats.map(function(x){return x[1].rake;})) || 1;
       catHTML = '<div class="popup-cat-section">' +
-        '<div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:12px">Breakdown per prodotto</div>';
+        '<div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:12px">' + t('breakdownPerProdotto') + '</div>';
       cats.forEach(function(x){
         var bw = Math.max(2, Math.round(x[1].rake / maxCatRake * 100));
         catHTML +=
@@ -1847,7 +2193,7 @@ function renderCaliWidget(){
   if(selMs.length===0||ms.length<2){
     ['cali-list','crescite-list'].forEach(id=>{
       const el=document.getElementById(id);
-      if(el) el.innerHTML='<div style="font-size:12px;color:var(--text3);padding:8px 0">Seleziona almeno 2 mesi</div>';
+      if(el) el.innerHTML='<div style="font-size:12px;color:var(--text3);padding:8px 0">'+t('select2Months')+'</div>';
     });
     return;
   }
@@ -1869,7 +2215,7 @@ function renderCaliWidget(){
   if(!compareMonth||compareMonth===currentMonth){
     ['cali-list','crescite-list'].forEach(id=>{
       const el=document.getElementById(id);
-      if(el) el.innerHTML='<div style="font-size:12px;color:var(--text3);padding:8px 0">Serve un mese di riferimento precedente</div>';
+      if(el) el.innerHTML='<div style="font-size:12px;color:var(--text3);padding:8px 0">'+t('needPrevMonth')+'</div>';
     });
     return;
   }
@@ -1899,7 +2245,7 @@ function renderCaliWidget(){
   const crescite=results.filter(r=>r.pct>1).sort((a,b)=>b.pct-a.pct).slice(0,5);
 
   function renderList(items){
-    if(!items.length) return '<div style="font-size:12px;color:var(--text3);padding:8px 0">Nessun dato significativo</div>';
+    if(!items.length) return '<div style="font-size:12px;color:var(--text3);padding:8px 0">'+t('noSignificantData')+'</div>';
     return items.map(function(r){
       const isDown=r.pct<0;
       const absP=Math.abs(r.pct).toFixed(1);
@@ -1951,6 +2297,8 @@ function saveDB(){
   syncToFirestore().catch(e=>console.warn('Firestore sync error:',e));
 }
 function appInit(){
+  /* apply saved language to UI */
+  applyLangToDOM();
   /* set default month to current */
   const now = new Date();
   const def = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
@@ -1999,7 +2347,7 @@ function setSyncStatus(state){
   const txt = document.getElementById('sync-txt');
   if(!dot||!txt) return;
   dot.className = 'sync-dot' + (state==='syncing'?' syncing':state==='error'?' error':'');
-  txt.textContent = state==='syncing'?'Sincronizzazione...' : state==='error'?'Errore sync' : 'Sincronizzato';
+  txt.textContent = state==='syncing'?t('syncing') : state==='error'?t('syncError') : t('synced');
 }
 
 /* ── TOAST ── */
@@ -2026,22 +2374,22 @@ async function doLogin(){
   const pass  = document.getElementById('login-password').value;
   const btn   = document.getElementById('login-btn');
   const errEl = document.getElementById('login-error');
-  if(!email||!pass){ errEl.textContent='Inserisci email e password'; return; }
+  if(!email||!pass){ errEl.textContent=t('fillEmailPassword'); return; }
   btn.disabled = true;
-  btn.innerHTML = '<span class="login-spinner"></span>Accesso in corso...';
+  btn.innerHTML = '<span class="login-spinner"></span>' + t('loggingIn');
   errEl.textContent = '';
   try{
     const cred = await fbAuth.signInWithEmailAndPassword(email, pass);
     /* onLoginSuccess called by auth state listener */
   }catch(e){
     const msg = e.code==='auth/invalid-credential'||e.code==='auth/wrong-password'||e.code==='auth/user-not-found'
-      ? 'Credenziali non valide'
+      ? t('invalidCredentials')
       : e.code==='auth/too-many-requests'
-      ? 'Troppi tentativi. Riprova tra qualche minuto.'
+      ? t('tooManyAttempts')
       : e.message;
     errEl.textContent = msg;
     btn.disabled = false;
-    btn.textContent = 'Accedi';
+    btn.textContent = t('login');
   }
 }
 
@@ -2176,6 +2524,7 @@ async function checkSession(){
 }
 
 /* Start */
+applyLangToDOM();
 checkSession();
 </script>
 </body>
