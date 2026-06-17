@@ -377,6 +377,7 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
   <button class="tab" onclick="switchTab('affiliati',this)" data-i18n="tabAffiliati">👥 Affiliati</button>
   <button class="tab" onclick="switchTab('categorie',this)" data-i18n="tabCategorie">🎰 Categorie</button>
   <button class="tab" onclick="switchTab('trend',this)" data-i18n="tabPerformance">📈 Performance</button>
+  <button class="tab" onclick="switchTab('operatori',this)" data-i18n="tabOperatori">🏆 Operatori</button>
   <button class="tab" onclick="switchTab('upload',this)">⬆ Carica dati <span class="tab-count" id="months-badge">0</span></button>
 </div>
 
@@ -572,7 +573,61 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
 
   </div>
 
-    <!-- UPLOAD -->
+  <!-- OPERATORI -->
+  <div id="tab-operatori" class="panel">
+    <div id="op-upload-section" class="upload-zone" onclick="document.getElementById('op-file-input').click()" style="margin-bottom:20px">
+      <input type="file" id="op-file-input" accept=".xlsx,.xls" style="display:none" onchange="handleOpFile(event)">
+      <div class="upload-icon">🏆</div>
+      <div class="upload-title" data-i18n="caricaMarketShare">Carica Italy Market Share</div>
+      <div class="upload-sub" data-i18n="trasciaFileOperatori">Trascina qui il file Excel con i dati di market share mensili per operatore</div>
+    </div>
+    <div id="op-preview-zone" style="display:none;margin-bottom:20px">
+      <div class="section-label" data-i18n="anteprimaDati">Anteprima dati</div>
+      <div id="op-preview-content" class="preview-box"></div>
+      <div style="display:flex;gap:10px;margin-top:12px">
+        <button class="btn-confirm" onclick="confirmOpUpload()" data-i18n="confermaSalva">✓ Conferma e salva</button>
+        <button class="btn-cancel" onclick="cancelOpUpload()" data-i18n="annulla">Annulla</button>
+      </div>
+    </div>
+
+    <div id="op-content-wrap">
+      <div class="table-wrap" style="margin-bottom:20px">
+        <div style="padding:16px 18px;border-bottom:1px solid var(--border)">
+          <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px" data-i18n="filtersOverview">Filtri</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <div><label class="field-label" data-i18n="daMese">Da mese</label>
+              <select class="tbl-select" id="op-from" onchange="renderOperatori()"><option value="" data-i18n="inizio">Inizio</option></select></div>
+            <div><label class="field-label" data-i18n="aMese">A mese</label>
+              <select class="tbl-select" id="op-to" onchange="renderOperatori()"><option value="" data-i18n="fine">Fine</option></select></div>
+            <div><label class="field-label" data-i18n="cercaAffiliato">Cerca operatore</label>
+              <input class="tbl-search" id="op-search" placeholder="🔍 Cerca operatore o brand..." oninput="renderOperatori()" style="width:240px"></div>
+            <div><label class="field-label">&nbsp;</label>
+              <label class="hide-inactive-toggle" style="height:38px;box-sizing:border-box">
+                <input type="checkbox" id="op-only-mbt" onchange="renderOperatori()">
+                <span data-i18n="soloMarathonbet">Evidenzia solo Marathonbet</span>
+              </label></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="kpi-operatori" class="kpi-grid"></div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-card-title" data-i18n="trendGgrMarathonbet">Trend GGR Totale — Marathonbet</div>
+          <div style="position:relative;height:240px"><canvas id="chart-op-mbt-trend" role="img" aria-label="Trend GGR Marathonbet"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-title" data-i18n="top10Operatori">Top 10 operatori per GGR (ultimo mese)</div>
+          <div style="position:relative;height:240px"><canvas id="chart-op-top10" role="img" aria-label="Top 10 operatori"></canvas></div>
+        </div>
+      </div>
+
+      <div class="table-wrap"><div id="tbl-operatori"></div></div>
+    </div>
+  </div>
+
+  <!-- UPLOAD -->
   <div id="tab-upload" class="panel">
     <div class="upload-zone" onclick="document.getElementById('file-input').click()">
       <input type="file" id="file-input" accept=".xlsx,.xls,.csv" onchange="handleFile(event)">
@@ -679,7 +734,26 @@ const I18N = {
     tabAffiliati: '👥 Affiliati',
     tabCategorie: '🎰 Categorie',
     tabPerformance: '📈 Performance',
+    tabOperatori: '🏆 Operatori',
     tabUpload: '⬆ Carica dati',
+    caricaMarketShare: 'Carica Italy Market Share',
+    trasciaFileOperatori: 'Trascina qui il file Excel con i dati di market share mensili per operatore',
+    soloMarathonbet: 'Evidenzia solo Marathonbet',
+    trendGgrMarathonbet: 'Trend GGR Totale — Marathonbet',
+    top10Operatori: 'Top 10 operatori per GGR (ultimo mese)',
+    ggrTotaleOp: 'GGR Totale',
+    ggrSport: 'GGR Sport',
+    ggrCasino: 'GGR Casino',
+    turnoverSport: 'Turnover Sport',
+    turnoverCasino: 'Turnover Casino',
+    mktShareTot: 'Mkt % Totale',
+    mktShareSport: 'Mkt % Sport',
+    mktShareCasino: 'Mkt % Casino',
+    margineSport: 'Margine Sport %',
+    operatore: 'Operatore',
+    brand: 'Brand',
+    posizione: 'Posizione',
+    nessunDatoOperatori: 'Nessun dato operatori caricato.',
     /* overview filters */
     filtersOverview: 'Filtri overview',
     from: 'Da...',
@@ -825,7 +899,26 @@ const I18N = {
     tabAffiliati: '👥 Affiliates',
     tabCategorie: '🎰 Categories',
     tabPerformance: '📈 Performance',
+    tabOperatori: '🏆 Operators',
     tabUpload: '⬆ Upload data',
+    caricaMarketShare: 'Upload Italy Market Share',
+    trasciaFileOperatori: 'Drop the Excel file with monthly market share data per operator',
+    soloMarathonbet: 'Highlight Marathonbet only',
+    trendGgrMarathonbet: 'Total GGR trend — Marathonbet',
+    top10Operatori: 'Top 10 operators by GGR (last month)',
+    ggrTotaleOp: 'Total GGR',
+    ggrSport: 'GGR Sport',
+    ggrCasino: 'GGR Casino',
+    turnoverSport: 'Turnover Sport',
+    turnoverCasino: 'Turnover Casino',
+    mktShareTot: 'Mkt % Total',
+    mktShareSport: 'Mkt % Sport',
+    mktShareCasino: 'Mkt % Casino',
+    margineSport: 'Sport Margin %',
+    operatore: 'Operator',
+    brand: 'Brand',
+    posizione: 'Rank',
+    nessunDatoOperatori: 'No operator data uploaded yet.',
     /* overview filters */
     filtersOverview: 'Overview filters',
     from: 'From...',
