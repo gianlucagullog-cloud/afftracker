@@ -601,6 +601,12 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
               <select class="tbl-select" id="op-to" onchange="renderOperatori()"><option value="" data-i18n="fine">Fine</option></select></div>
             <div><label class="field-label" data-i18n="cercaAffiliato">Cerca operatore</label>
               <input class="tbl-search" id="op-search" placeholder="🔍 Cerca operatore o brand..." oninput="renderOperatori()" style="width:240px"></div>
+            <div><label class="field-label" data-i18n="prodotto">Prodotto</label>
+              <select class="tbl-select" id="op-product-filter" onchange="renderOperatori()">
+                <option value="tot" data-i18n="ggrTotaleOp">GGR Totale</option>
+                <option value="sport" data-i18n="ggrSport">GGR Sport</option>
+                <option value="casino" data-i18n="ggrCasino">GGR Casino</option>
+              </select></div>
             <div><label class="field-label">&nbsp;</label>
               <label class="hide-inactive-toggle" style="height:38px;box-sizing:border-box">
                 <input type="checkbox" id="op-only-mbt" onchange="renderOperatori()">
@@ -702,6 +708,19 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
     <button onclick="closeInactivePopup()" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;line-height:1;padding:4px" data-i18n="chiudi" title="Chiudi">✕</button>
   </div>
   <div id="inactive-popup-body" style="padding:12px 22px 20px"></div>
+</div>
+
+<!-- OPERATOR DETAIL POPUP -->
+<div id="op-popup-overlay" onclick="closeOpPopup()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;backdrop-filter:blur(3px)"></div>
+<div id="op-popup" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--card-bg);border:1px solid var(--border);border-radius:16px;width:min(820px,95vw);max-height:85vh;overflow-y:auto;z-index:1001;box-shadow:0 24px 64px rgba(0,0,0,.5)">
+  <div id="op-popup-header" style="padding:18px 24px;background:linear-gradient(135deg,#0a1628,#1a2942);position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <div id="op-popup-title" style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;color:#fff;letter-spacing:.02em"></div>
+      <div id="op-popup-sub" style="font-size:12px;color:rgba(255,255,255,.65);margin-top:4px"></div>
+    </div>
+    <button onclick="closeOpPopup()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:16px;flex-shrink:0">✕</button>
+  </div>
+  <div id="op-popup-body" style="padding:20px 24px"></div>
 </div>
 
 <script>
@@ -1900,6 +1919,19 @@ function renderOperatori(){
   const q=(searchEl?searchEl.value:'').toLowerCase().trim();
   const onlyMbtEl=document.getElementById('op-only-mbt');
   const onlyMbt=onlyMbtEl&&onlyMbtEl.checked;
+  const prodEl=document.getElementById('op-product-filter');
+  const prod=prodEl?prodEl.value:'tot'; /* 'tot' | 'sport' | 'casino' */
+
+  const fieldFor={tot:{ggr:'ggrTot',turn:'turnSport',turn2:'turnCasino',mkt:'mktTot'},
+                  sport:{ggr:'ggrSport',turn:'turnSport',mkt:'mktSport'},
+                  casino:{ggr:'ggrCasino',turn:'turnCasino',mkt:'mktCasino'}}[prod];
+
+  function turnoverFor(r){
+    if(prod==='tot') return (r.turnSport||0)+(r.turnCasino||0);
+    return prod==='sport' ? (r.turnSport||0) : (r.turnCasino||0);
+  }
+  function ggrFor(r){ return r[fieldFor.ggr]||0; }
+  function mktFor(r){ return r[fieldFor.mkt]||0; }
 
   /* ── KPI: Marathonbet summary for last month + delta ── */
   const lastRows=opDb[lastM]||[];
@@ -1910,53 +1942,52 @@ function renderOperatori(){
     mbtPrev=findMarathonbet(opDb[prevM]||[]);
   }
   let ggrDelta=null;
-  if(mbtLast&&mbtPrev&&mbtPrev.ggrTot){
-    ggrDelta=(mbtLast.ggrTot-mbtPrev.ggrTot)/Math.abs(mbtPrev.ggrTot)*100;
+  if(mbtLast&&mbtPrev&&ggrFor(mbtPrev)){
+    ggrDelta=(ggrFor(mbtLast)-ggrFor(mbtPrev))/Math.abs(ggrFor(mbtPrev))*100;
   }
   let mbtRank=null;
   if(mbtLast){
-    const sorted=lastRows.slice().sort(function(a,b){return b.ggrTot-a.ggrTot;});
+    const sorted=lastRows.slice().sort(function(a,b){return ggrFor(b)-ggrFor(a);});
     mbtRank=sorted.findIndex(function(r){return r.brand===mbtLast.brand;})+1;
   }
 
   document.getElementById('kpi-operatori').innerHTML = mbtLast ? `
-    <div class="kpi-card"><div class="kpi-label">${t('ggrTotaleOp')} MBT</div><div class="kpi-value">${fe(mbtLast.ggrTot)}</div>
+    <div class="kpi-card"><div class="kpi-label">${t('ggrTotaleOp')} MBT</div><div class="kpi-value">${fe(ggrFor(mbtLast))}</div>
       ${ggrDelta!=null?`<div class="kpi-delta ${ggrDelta>=0?'delta-up':'delta-down'}">${ggrDelta>=0?'▲':'▼'} ${Math.abs(ggrDelta).toFixed(1)}% ${t('vsMesePrecedente')}</div>`:''}
     </div>
-    <div class="kpi-card"><div class="kpi-label">${t('mktShareTot')} MBT</div><div class="kpi-value">${fp(mbtLast.mktTot*100)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">${t('ggrSport')} MBT</div><div class="kpi-value">${fe(mbtLast.ggrSport)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">${t('ggrCasino')} MBT</div><div class="kpi-value">${fe(mbtLast.ggrCasino)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">${t('mktShareTot')} MBT</div><div class="kpi-value">${fp(mktFor(mbtLast)*100)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">${currentLang==='en'?'Turnover':'Giocato'} MBT</div><div class="kpi-value">${fe(turnoverFor(mbtLast))}</div></div>
     <div class="kpi-card" style="border-left:2px solid var(--red)"><div class="kpi-label">${t('posizione')} ${currentLang==='en'?'in market':'nel mercato'}</div><div class="kpi-value" style="color:var(--red)">#${mbtRank||'—'}</div>
       <div style="font-size:10px;color:var(--text3);margin-top:4px">${ml(lastM)} · ${lastRows.length} ${currentLang==='en'?'operators':'operatori'}</div>
     </div>
   ` : `<div style="color:var(--text3);font-size:13px;padding:12px 0">${currentLang==='en'?'Marathonbet not found in last month data':'Marathonbet non trovato nei dati dellultimo mese'}</div>`;
 
-  /* ── Trend chart: Marathonbet GGR Totale across filtMs ── */
+  /* ── Trend chart: Marathonbet GGR across filtMs (product-aware) ── */
   const trendData=filtMs.map(function(m){
     const r=findMarathonbet(opDb[m]||[]);
-    return r?r.ggrTot:0;
+    return r?ggrFor(r):0;
   });
   if(window.cOpTrend) window.cOpTrend.destroy();
   const trendCtx=document.getElementById('chart-op-mbt-trend');
   if(trendCtx){
     window.cOpTrend=new Chart(trendCtx,{
       type:'line',
-      data:{labels:filtMs.map(ml),datasets:[{label:'GGR Totale',data:trendData,borderColor:'#e8001c',backgroundColor:'rgba(232,0,28,.08)',fill:true,tension:.3,pointRadius:3}]},
+      data:{labels:filtMs.map(ml),datasets:[{label:'GGR',data:trendData,borderColor:'#e8001c',backgroundColor:'rgba(232,0,28,.08)',fill:true,tension:.3,pointRadius:3}]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
         scales:{y:{ticks:{color:'#64748b',callback:v=>'€'+fn(v)},grid:{color:'rgba(128,128,128,0.1)'}},
                 x:{ticks:{color:'#94a3b8',font:{size:11}},grid:{display:false}}}}
     });
   }
 
-  /* ── Top 10 chart (last month) ── */
-  const top10=lastRows.slice().sort(function(a,b){return b.ggrTot-a.ggrTot;}).slice(0,10);
+  /* ── Top 10 chart (last month, product-aware) ── */
+  const top10=lastRows.slice().sort(function(a,b){return ggrFor(b)-ggrFor(a);}).slice(0,10);
   if(window.cOpTop10) window.cOpTop10.destroy();
   const top10Ctx=document.getElementById('chart-op-top10');
   if(top10Ctx){
     window.cOpTop10=new Chart(top10Ctx,{
       type:'bar',
-      data:{labels:top10.map(function(r){return r.brand;}),datasets:[{label:'GGR Totale',
-        data:top10.map(function(r){return +r.ggrTot.toFixed(0);}),
+      data:{labels:top10.map(function(r){return r.brand;}),datasets:[{label:'GGR',
+        data:top10.map(function(r){return +ggrFor(r).toFixed(0);}),
         backgroundColor:top10.map(function(r){return r.brand.toLowerCase().includes('marathonbet')?'#e8001c':'#64748b';}),
         borderRadius:5}]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
@@ -1965,47 +1996,194 @@ function renderOperatori(){
     });
   }
 
-  /* ── Ranking table (last month, all operators) ── */
-  let displayRows=lastRows.slice();
+  /* ════ TABLE: single month = simple, multi month = per-month columns ════ */
+
+  /* gather all distinct operators present across filtMs, keyed by brand */
+  const opSet={};
+  filtMs.forEach(function(m){
+    (opDb[m]||[]).forEach(function(r){
+      if(!opSet[r.brand]) opSet[r.brand]={brand:r.brand, operatore:r.operatore, cod:r.cod, byMonth:{}};
+      opSet[r.brand].byMonth[m]=r;
+      opSet[r.brand].operatore=r.operatore;
+    });
+  });
+  let opList=Object.values(opSet);
+
   if(q){
-    displayRows=displayRows.filter(function(r){
-      return r.operatore.toLowerCase().includes(q) || r.brand.toLowerCase().includes(q);
+    opList=opList.filter(function(o){
+      return o.brand.toLowerCase().includes(q) || (o.operatore||'').toLowerCase().includes(q);
     });
   }
   if(onlyMbt){
-    displayRows=displayRows.filter(function(r){return r.brand.toLowerCase().includes('marathonbet');});
+    opList=opList.filter(function(o){return o.brand.toLowerCase().includes('marathonbet');});
   }
-  displayRows.sort(function(a,b){return b.ggrTot-a.ggrTot;});
+
+  /* per-month ranking (computed once per month across ALL operators in that month, not just filtered list) */
+  const rankByMonth={};
+  filtMs.forEach(function(m){
+    const rows=(opDb[m]||[]).slice().sort(function(a,b){return ggrFor(b)-ggrFor(a);});
+    rankByMonth[m]={};
+    rows.forEach(function(r,i){ rankByMonth[m][r.brand]=i+1; });
+  });
+
+  opList.forEach(function(o){
+    const lastEntry=o.byMonth[lastM];
+    const firstEntry=o.byMonth[firstM];
+    o.lastGgr = lastEntry?ggrFor(lastEntry):0;
+    const firstGgr = firstEntry?ggrFor(firstEntry):0;
+    o.deltaPct = (firstEntry && firstGgr!==0) ? ((o.lastGgr-firstGgr)/Math.abs(firstGgr)*100) : null;
+  });
+
+  /* sort by last month GGR descending by default */
+  opList.sort(function(a,b){return b.lastGgr-a.lastGgr;});
+
+  if(filtMs.length===1){
+    /* ── SIMPLE TABLE ── */
+    document.getElementById('tbl-operatori').innerHTML = `
+    <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;padding:12px 18px;border-bottom:1px solid var(--border)">
+      ${t('rankingAffiliati')} — ${ml(lastM)}
+    </div>
+    <table><thead><tr>
+      <th style="width:40px">${t('posizione')}</th>
+      <th>${t('operatore')}</th><th>${t('brand')}</th>
+      <th>${currentLang==='en'?'Turnover':'Giocato'}</th>
+      <th>${t('ggrTotaleOp')}</th><th>${t('mktShareTot')}</th>
+    </tr></thead><tbody>${opList.map(function(o,i){
+      const r=o.byMonth[lastM];
+      if(!r) return '';
+      const isMbt=o.brand.toLowerCase().includes('marathonbet');
+      return`<tr class="clickable-row" onclick="openOpPopup('${o.brand}',${JSON.stringify(filtMs)})" style="cursor:pointer;${isMbt?'background:rgba(232,0,28,.06)':''}">
+        <td><span class="rank ${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':''}">${i+1}</span></td>
+        <td><div style="font-size:12px;color:var(--text2);max-width:200px;overflow:hidden;text-overflow:ellipsis">${o.operatore}</div></td>
+        <td><div class="aff-code" style="${isMbt?'color:var(--red);font-weight:700':'color:var(--sky)'}">${o.brand}</div></td>
+        <td>${fe(turnoverFor(r))}</td>
+        <td style="font-weight:${isMbt?'700':'400'}">${fe(ggrFor(r))}</td>
+        <td>${fp(mktFor(r)*100)}</td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+    return;
+  }
+
+  /* ── MULTI MONTH TABLE: per-month columns (Giocato / GGR / Mkt% / Rank) ── */
+  const monthCols=filtMs.map(function(m){
+    return `<th class="th-num" style="border-left:1px solid var(--border)" colspan="4">${ml(m)}</th>`;
+  }).join('');
+  const monthSubCols=filtMs.map(function(){
+    return `<th class="th-num" style="border-left:1px solid var(--border);font-size:10px">${currentLang==='en'?'Turnover':'Giocato'}</th><th class="th-num" style="font-size:10px">GGR</th><th class="th-num" style="font-size:10px">Mkt%</th><th class="th-num" style="font-size:10px">#</th>`;
+  }).join('');
 
   document.getElementById('tbl-operatori').innerHTML = `
   <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;padding:12px 18px;border-bottom:1px solid var(--border)">
-    ${t('rankingAffiliati')} — ${ml(lastM)}
+    ${t('rankingAffiliati')} — ${ml(firstM)} → ${ml(lastM)} (${filtMs.length} ${currentLang==='en'?'months':'mesi'}) — ${prod==='tot'?t('ggrTotaleOp'):prod==='sport'?t('ggrSport'):t('ggrCasino')}
   </div>
-  <table><thead><tr>
-    <th style="width:40px">${t('posizione')}</th>
-    <th>${t('operatore')}</th><th>${t('brand')}</th>
-    <th>${t('ggrTotaleOp')}</th><th>${t('mktShareTot')}</th>
-    <th>${t('ggrSport')}</th><th>${t('mktShareSport')}</th>
-    <th>${t('ggrCasino')}</th><th>${t('mktShareCasino')}</th>
-    <th>${t('margineSport')}</th>
-  </tr></thead><tbody>${displayRows.map(function(r,i){
-    const isMbt=r.brand.toLowerCase().includes('marathonbet');
-    return`<tr style="${isMbt?'background:rgba(232,0,28,.06)':''}">
-      <td><span class="rank ${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':''}">${i+1}</span></td>
-      <td><div style="font-size:12px;color:var(--text2);max-width:200px;overflow:hidden;text-overflow:ellipsis">${r.operatore}</div></td>
-      <td><div class="aff-code" style="${isMbt?'color:var(--red);font-weight:700':'color:var(--sky)'}">${r.brand}</div></td>
-      <td style="font-weight:${isMbt?'700':'400'}">${fe(r.ggrTot)}</td>
-      <td>${fp(r.mktTot*100)}</td>
-      <td>${fe(r.ggrSport)}</td>
-      <td>${fp(r.mktSport*100)}</td>
-      <td>${fe(r.ggrCasino)}</td>
-      <td>${fp(r.mktCasino*100)}</td>
-      <td>${fp(r.margSport*100)}</td>
+  <div style="overflow-x:auto">
+  <table><thead>
+    <tr>
+      <th rowspan="2" style="vertical-align:bottom">${t('operatore')}</th>
+      <th rowspan="2" style="vertical-align:bottom">${t('brand')}</th>
+      <th rowspan="2" style="vertical-align:bottom;border-left:2px solid rgba(232,0,28,.3)">${currentLang==='en'?'GGR variation (period)':'Variazione GGR (periodo)'}</th>
+      ${monthCols}
+    </tr>
+    <tr>${monthSubCols}</tr>
+  </thead><tbody>${opList.map(function(o,i){
+    const isMbt=o.brand.toLowerCase().includes('marathonbet');
+    const monthCells=filtMs.map(function(m){
+      const r=o.byMonth[m];
+      if(!r) return `<td class="td-num" style="border-left:1px solid var(--border);color:var(--text3)">—</td><td class="td-num" style="color:var(--text3)">—</td><td class="td-num" style="color:var(--text3)">—</td><td class="td-num" style="color:var(--text3)">—</td>`;
+      const rank=rankByMonth[m][o.brand];
+      return `<td class="td-num" style="border-left:1px solid var(--border)">${fe(turnoverFor(r))}</td><td class="td-num">${fe(ggrFor(r))}</td><td class="td-num">${fp(mktFor(r)*100)}</td><td class="td-num" style="color:#7dd3fc;font-weight:600">#${rank||'—'}</td>`;
+    }).join('');
+    const deltaHTML = o.deltaPct===null
+      ? '<span style="color:var(--text3);font-size:12px">—</span>'
+      : `<span class="var-chip ${o.deltaPct>=0?'var-up':'var-down'}">${o.deltaPct>=0?'▲':'▼'} ${Math.abs(o.deltaPct).toFixed(1)}%</span>`;
+    return`<tr class="clickable-row" onclick="openOpPopup('${o.brand}',${JSON.stringify(filtMs)})" style="cursor:pointer;${isMbt?'background:rgba(232,0,28,.06)':''}">
+      <td><div style="font-size:12px;color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis">${o.operatore}</div></td>
+      <td><div class="aff-code" style="${isMbt?'color:var(--red);font-weight:700':'color:var(--sky)'}">${o.brand}</div></td>
+      <td style="border-left:2px solid rgba(232,0,28,.3)">${deltaHTML}</td>
+      ${monthCells}
     </tr>`;
-  }).join('')}</tbody></table>`;
+  }).join('')}</tbody></table>
+  </div>`;
 }
 
+/* ── OPERATOR DETAIL POPUP ── */
+function openOpPopup(brand, contextMonths){
+  const ms = (contextMonths && contextMonths.length) ? contextMonths.slice().sort() : opMonths();
+  /* gather entry for this brand across ALL available months (not just filtered context) for full history view, but cap to last 7 for table width like the spreadsheet */
+  const allMs = opMonths();
+  const histMs = allMs.slice(-7);
 
+  const entries = histMs.map(function(m){
+    const rows=opDb[m]||[];
+    const r=rows.find(function(x){return x.brand===brand;});
+    return {month:m, data:r||null};
+  });
+
+  const latestEntry = entries.slice().reverse().find(function(e){return e.data;});
+  if(!latestEntry || !latestEntry.data){
+    return;
+  }
+  const meta=latestEntry.data;
+  const isMbt=brand.toLowerCase().includes('marathonbet');
+
+  document.getElementById('op-popup-title').textContent = (isMbt?'★ ':'▲ ') + brand.toUpperCase() + '  ·  ' + meta.operatore + '  ·  Cod. ' + meta.cod;
+  const firstMLabel=ml(histMs[0]), lastMLabel=ml(histMs[histMs.length-1]);
+  document.getElementById('op-popup-sub').innerHTML =
+    `Brand: ${brand}  |  ${t('posizione')}: ${firstMLabel} – ${lastMLabel}`;
+
+  const lastIdx=histMs.length-1;
+  let rowsHTML = `<div style="overflow-x:auto"><table><thead><tr>
+    <th>${currentLang==='en'?'Indicator':'Indicatore'}</th>
+    ${histMs.map(function(m,i){return `<th class="th-num" style="${i===lastIdx?'background:rgba(232,0,28,.08)':''}">${i===lastIdx?'★ ':''}${ml(m)}</th>`;}).join('')}
+  </tr></thead><tbody>`;
+
+  function row(label, getter, fmt){
+    return `<tr><td style="font-weight:700;color:var(--text)">${label}</td>` +
+      entries.map(function(e,i){
+        const v = e.data ? getter(e.data) : null;
+        return `<td class="td-num" style="${i===lastIdx?'background:rgba(232,0,28,.04);font-weight:700':''}">${v===null?'—':fmt(v)}</td>`;
+      }).join('') + '</tr>';
+  }
+
+  rowsHTML += row(t('ggrTotaleOp'), function(d){return d.ggrTot;}, fe);
+  rowsHTML += row(t('ggrSport'), function(d){return d.ggrSport;}, fe);
+  rowsHTML += row(t('ggrCasino'), function(d){return d.ggrCasino;}, fe);
+  rowsHTML += row(currentLang==='en'?'Turnover Sport':'Giocato Sport', function(d){return d.turnSport;}, fe);
+  rowsHTML += row(currentLang==='en'?'Turnover Casino':'Giocato Casino', function(d){return d.turnCasino;}, fe);
+  rowsHTML += row(t('mktShareTot'), function(d){return d.mktTot*100;}, fp);
+  rowsHTML += row(t('margineSport'), function(d){return d.margSport*100;}, fp);
+  rowsHTML += '</tbody></table></div>';
+
+  /* trend mini chart data attached after render via canvas */
+  const trendVals = entries.map(function(e){return e.data?e.data.ggrTot:null;});
+
+  document.getElementById('op-popup-body').innerHTML =
+    rowsHTML +
+    `<div style="margin-top:20px"><div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:12px">${currentLang==='en'?'GGR Total Trend':'Trend GGR Totale'}</div>
+    <div style="position:relative;height:200px"><canvas id="op-popup-trend-chart"></canvas></div></div>`;
+
+  document.getElementById('op-popup-overlay').style.display='block';
+  document.getElementById('op-popup').style.display='block';
+  document.body.style.overflow='hidden';
+
+  if(window.cOpPopupTrend) window.cOpPopupTrend.destroy();
+  const ctx=document.getElementById('op-popup-trend-chart');
+  if(ctx){
+    window.cOpPopupTrend=new Chart(ctx,{
+      type:'line',
+      data:{labels:histMs.map(ml),datasets:[{data:trendVals,borderColor:isMbt?'#e8001c':'#7dd3fc',backgroundColor:isMbt?'rgba(232,0,28,.08)':'rgba(125,211,252,.08)',fill:true,tension:.3,pointRadius:3,spanGaps:true}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+        scales:{y:{ticks:{color:'#64748b',callback:v=>'€'+fn(v)},grid:{color:'rgba(128,128,128,0.1)'}},
+                x:{ticks:{color:'#94a3b8',font:{size:11}},grid:{display:false}}}}
+    });
+  }
+}
+
+function closeOpPopup(){
+  document.getElementById('op-popup-overlay').style.display='none';
+  document.getElementById('op-popup').style.display='none';
+  document.body.style.overflow='';
+}
 function renderCategorie(){
   const ms=months();
   if(!ms.length){
