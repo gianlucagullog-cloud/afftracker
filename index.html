@@ -2296,7 +2296,6 @@ function closeOpPopup(){
    ════════════════════════════════════════════════════ */
 let isAdminUser = false;
 let userPerms   = null; /* {ownerUid, allowedNetworks:[...], allowedTabs:[...], username} for non-admin users */
-let secondaryFbApp = null; /* isolated Firebase app instance used only to create new users without affecting admin session */
 
 async function checkIsAdmin(uid){
   if(!fbDb) return false;
@@ -2440,13 +2439,23 @@ async function createNewUser(){
   const allowedTabs     = Array.from(document.querySelectorAll('#nu-tabs input:checked')).map(function(cb){return cb.value;});
 
   try{
-    /* isolated secondary app instance so creating the user doesn't switch the admin's active session */
-    if(!secondaryFbApp){
-      secondaryFbApp = firebase.initializeApp(FIREBASE_CONFIG, 'secondary');
+    /* Create the user via the Firebase Auth REST API directly (signup endpoint).
+       This avoids any local SDK session/app-instance side effects entirely —
+       the admin's current signed-in session is never touched. */
+    const signupUrl = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=' + FIREBASE_CONFIG.apiKey;
+    const resp = await fetch(signupUrl, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ email: fakeEmail, password: password, returnSecureToken: false })
+    });
+    const result = await resp.json();
+    if(!resp.ok){
+      const errMsg = result && result.error && result.error.message ? result.error.message : 'unknown_error';
+      if(errMsg.includes('EMAIL_EXISTS')) throw {code:'auth/email-already-in-use'};
+      if(errMsg.includes('WEAK_PASSWORD')) throw {code:'auth/weak-password'};
+      throw new Error(errMsg);
     }
-    const secAuth = secondaryFbApp.auth();
-    const cred = await secAuth.createUserWithEmailAndPassword(fakeEmail, password);
-    const newUid = cred.user.uid;
+    const newUid = result.localId;
 
     await fbDb.collection('userPermissions').doc(newUid).set({
       ownerUid: currentUser.uid,
@@ -2455,8 +2464,6 @@ async function createNewUser(){
       allowedTabs: allowedTabs,
       createdAt: new Date().toISOString()
     });
-
-    await secAuth.signOut();
 
     msgEl.style.color='#86efac';
     msgEl.textContent=t('utenteCreato')+' "'+username+'"';
