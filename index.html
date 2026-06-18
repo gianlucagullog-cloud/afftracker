@@ -305,7 +305,7 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
     <div class="login-sub" data-i18n="loginSubtitle">Accedi con le credenziali fornite dall'amministratore</div>
     <div class="login-field">
       <label data-i18n="email">Email</label>
-      <input type="email" id="login-email" placeholder="nome@marathonbet.it" autocomplete="email">
+      <input type="text" id="login-email" placeholder="nome@marathonbet.it / username" autocomplete="username">
     </div>
     <div class="login-field">
       <label data-i18n="password">Password</label>
@@ -3691,9 +3691,14 @@ function showToast(msg, type='success'){
 
 /* ── LOGIN ── */
 async function doLogin(){
-  const email = document.getElementById('login-email').value.trim();
+  let email = document.getElementById('login-email').value.trim();
   const pass  = document.getElementById('login-password').value;
   const btn   = document.getElementById('login-btn');
+  /* if the person typed a plain username (no @), treat it as a secondary-user
+     login and convert it to the internal fake-email format transparently */
+  if(email && !email.includes('@')){
+    email = email.toLowerCase().replace(/[^a-z0-9._-]/g,'') + '@afftracker.local';
+  }
   const errEl = document.getElementById('login-error');
   if(!email||!pass){ errEl.textContent=t('fillEmailPassword'); return; }
   btn.disabled = true;
