@@ -379,6 +379,7 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
   <button class="tab" onclick="switchTab('categorie',this)" data-i18n="tabCategorie">🎰 Categorie</button>
   <button class="tab" onclick="switchTab('trend',this)" data-i18n="tabPerformance">📈 Performance</button>
   <button class="tab" onclick="switchTab('operatori',this)" data-i18n="tabOperatori">🏆 Operatori</button>
+  <button class="tab" onclick="switchTab('pnl',this)" data-i18n="tabPnl">💰 P&L</button>
   <button class="tab" onclick="switchTab('upload',this)">⬆ Carica dati <span class="tab-count" id="months-badge">0</span></button>
 </div>
 
@@ -634,6 +635,71 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
     </div>
   </div>
 
+  <!-- P&L -->
+  <div id="tab-pnl" class="panel">
+    <div id="pnl-upload-section" class="upload-zone" onclick="document.getElementById('pnl-file-input').click()" style="margin-bottom:20px">
+      <input type="file" id="pnl-file-input" accept=".xlsx,.xls" style="display:none" onchange="handlePnlFile(event)">
+      <div class="upload-icon">💰</div>
+      <div class="upload-title" data-i18n="caricaPnl">Carica P&L vs Forecast</div>
+      <div class="upload-sub" data-i18n="trasciaFilePnl">Trascina qui il file Excel con il foglio "PNL vs Forecast"</div>
+    </div>
+    <div id="pnl-preview-zone" style="display:none;margin-bottom:20px">
+      <div class="section-label" data-i18n="anteprimaDati">Anteprima dati</div>
+      <div id="pnl-preview-content" class="preview-box"></div>
+      <div style="display:flex;gap:10px;margin-top:12px">
+        <button class="btn-confirm" onclick="confirmPnlUpload()" data-i18n="confermaSalva">✓ Conferma e salva</button>
+        <button class="btn-cancel" onclick="cancelPnlUpload()" data-i18n="annulla">Annulla</button>
+      </div>
+    </div>
+
+    <div id="pnl-content-wrap">
+      <div class="table-wrap" style="margin-bottom:20px">
+        <div style="padding:16px 18px;border-bottom:1px solid var(--border)">
+          <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px" data-i18n="filtersOverview">Filtri</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <div><label class="field-label" data-i18n="daMese">Da mese</label>
+              <select class="tbl-select" id="pnl-from" onchange="renderPnl()"><option value="" data-i18n="inizio">Inizio</option></select></div>
+            <div><label class="field-label" data-i18n="aMese">A mese</label>
+              <select class="tbl-select" id="pnl-to" onchange="renderPnl()"><option value="" data-i18n="fine">Fine</option></select></div>
+            <div><label class="field-label" data-i18n="canale">Canale</label>
+              <select class="tbl-select" id="pnl-channel" onchange="renderPnl()">
+                <option value="TOTAL">TOTAL</option>
+                <option value="ONLINE">ONLINE</option>
+                <option value="PVR">PVR</option>
+              </select></div>
+            <div><label class="field-label" data-i18n="segmento">Segmento</label>
+              <select class="tbl-select" id="pnl-segment" onchange="renderPnl()">
+                <option value="TOTAL" data-i18n="totale">Totale</option>
+                <option value="SPORT">Sport</option>
+                <option value="CASINO">Casino</option>
+              </select></div>
+            <div><label class="field-label" data-i18n="vista">Vista</label>
+              <select class="tbl-select" id="pnl-metric" onchange="renderPnl()">
+                <option value="actuals" data-i18n="actuals">Actuals</option>
+                <option value="fcst" data-i18n="forecastLbl">Forecast</option>
+                <option value="achieved" data-i18n="achievedPct">% Achieved</option>
+              </select></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="kpi-pnl" class="kpi-grid"></div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-card-title" data-i18n="trendEbitda">Trend EBITDA</div>
+          <div style="position:relative;height:240px"><canvas id="chart-pnl-ebitda" role="img" aria-label="Trend EBITDA"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-title" data-i18n="trendNgr">Trend NGR 2nd Level</div>
+          <div style="position:relative;height:240px"><canvas id="chart-pnl-ngr" role="img" aria-label="Trend NGR"></canvas></div>
+        </div>
+      </div>
+
+      <div class="table-wrap"><div id="tbl-pnl"></div></div>
+    </div>
+  </div>
+
   <!-- UPLOAD -->
   <div id="tab-upload" class="panel">
     <div class="upload-zone" onclick="document.getElementById('file-input').click()">
@@ -770,6 +836,7 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
             <label class="hide-inactive-toggle"><input type="checkbox" value="categorie" checked> <span data-i18n="tabCategorie">🎰 Categorie</span></label>
             <label class="hide-inactive-toggle"><input type="checkbox" value="trend" checked> <span data-i18n="tabPerformance">📈 Performance</span></label>
             <label class="hide-inactive-toggle"><input type="checkbox" value="operatori"> <span data-i18n="tabOperatori">🏆 Operatori</span></label>
+            <label class="hide-inactive-toggle"><input type="checkbox" value="pnl"> <span data-i18n="tabPnl">💰 P&L</span></label>
           </div>
         </div>
         <button class="btn-confirm" onclick="createNewUser()" data-i18n="creaUtente">✓ Crea utente</button>
@@ -814,6 +881,20 @@ const I18N = {
     tabCategorie: '🎰 Categorie',
     tabPerformance: '📈 Performance',
     tabOperatori: '🏆 Operatori',
+    tabPnl: '💰 P&L',
+    caricaPnl: 'Carica P&L vs Forecast',
+    trasciaFilePnl: 'Trascina qui il file Excel con il foglio "PNL vs Forecast"',
+    fileNonValidoPnl: 'File non valido. Verifica che contenga il foglio "PNL vs Forecast" nel formato corretto.',
+    nessunDatoPnl: 'Nessun dato P&L caricato.',
+    canale: 'Canale',
+    segmento: 'Segmento',
+    totale: 'Totale',
+    vista: 'Vista',
+    actuals: 'Actuals',
+    forecastLbl: 'Forecast',
+    achievedPct: '% Achieved',
+    trendEbitda: 'Trend EBITDA',
+    trendNgr: 'Trend NGR 2nd Level',
     tabUpload: '⬆ Carica dati',
     caricaMarketShare: 'Carica Italy Market Share',
     trasciaFileOperatori: 'Trascina qui il file Excel con i dati di market share mensili per operatore',
@@ -1003,6 +1084,20 @@ const I18N = {
     tabCategorie: '🎰 Categories',
     tabPerformance: '📈 Performance',
     tabOperatori: '🏆 Operators',
+    tabPnl: '💰 P&L',
+    caricaPnl: 'Upload P&L vs Forecast',
+    trasciaFilePnl: 'Drop the Excel file containing the "PNL vs Forecast" sheet',
+    fileNonValidoPnl: 'Invalid file. Check that it contains the "PNL vs Forecast" sheet in the correct format.',
+    nessunDatoPnl: 'No P&L data uploaded yet.',
+    canale: 'Channel',
+    segmento: 'Segment',
+    totale: 'Total',
+    vista: 'View',
+    actuals: 'Actuals',
+    forecastLbl: 'Forecast',
+    achievedPct: '% Achieved',
+    trendEbitda: 'EBITDA Trend',
+    trendNgr: 'NGR 2nd Level Trend',
     tabUpload: '⬆ Upload data',
     caricaMarketShare: 'Upload Italy Market Share',
     trasciaFileOperatori: 'Drop the Excel file with monthly market share data per operator',
@@ -1184,6 +1279,7 @@ function setLang(lang){
   if(typeof renderAffiliati==='function') renderAffiliati();
   if(typeof renderCategorie==='function') renderCategorie();
   if(typeof renderOperatori==='function') renderOperatori();
+  if(typeof renderPnl==='function') renderPnl();
   if(typeof renderGrafico==='function') renderGrafico();
   if(typeof renderMonthsList==='function') renderMonthsList();
 }
@@ -1315,6 +1411,7 @@ function switchTab(name,btn){
   if(name==='affiliati')renderAffiliati();
   if(name==='categorie')renderCategorie();
   if(name==='operatori')renderOperatori();
+  if(name==='pnl')renderPnl();
   if(name==='trend')renderTrend();
   if(name==='upload')renderMonthsList();
 }
@@ -2327,7 +2424,8 @@ function applyTabPermissions(){
     affiliati: "switchTab('affiliati'",
     categorie: "switchTab('categorie'",
     trend:     "switchTab('trend'",
-    operatori: "switchTab('operatori'"
+    operatori: "switchTab('operatori'",
+    pnl:       "switchTab('pnl'"
   };
   document.querySelectorAll('.tabs .tab').forEach(function(btn){
     const onclick = btn.getAttribute('onclick')||'';
@@ -2516,6 +2614,342 @@ async function deleteUserPermission(uid){
     console.error('[Account] Errore rimozione utente:', e);
     showToast(currentLang==='en'?'Could not remove user permissions':'Impossibile rimuovere i permessi utente', 'error');
   }
+}
+
+
+/* ════════════════════════════════════════════════════
+   P&L vs FORECAST — monthly business performance tracking
+   ════════════════════════════════════════════════════ */
+let pnlDb = {};          /* { 'YYYY-MM': { channels: { TOTAL: {TOTAL:{actuals:{},fcst:{},achieved:{}}, SPORT:{...}, CASINO:{...}}, ONLINE:{...}, PVR:{...} } } } */
+let pnlPendingData = null;
+let pnlPendingMonths = [];
+
+/* Row index -> indicator label, mirroring the "PNL vs Forecast" sheet layout.
+   Captured once from the reference file; if the row layout shifts in a future
+   upload, parsing falls back to scanning column A text for these labels instead
+   of fixed row numbers, so this stays robust. */
+const PNL_INDICATORS = [
+  'FTD','UPC','New POS Activated','Active POS','Turnover','Margin','GGR/Rake',
+  'Deposits','Withdraw','Deposit + Withdraw','Cash Flow (Deposit - Withdraw)',
+  'BONUS COST','Gaming Taxes','NGR 1st Level','Exalogic direct cost','Trading Feeds',
+  'Concession fee','RG Contribution','PSP Processing fees','Game Providers','Direct Costs',
+  'NGR 2nd Level','Affiliates revenue share','PVR Agent Comission','Partners Direct Costs',
+  'Contribution NGR - Direct Costs','Branding & PVR Onboarding','Hospitality','SEO Link Building',
+  'Flat Fee','Turnover Fee','CPA','Marketing','Gross Profit after Marketing',
+  'Exalogic Monthly fee','Exalogic Trading Management','Exalogic ADM Service','KYC (SumSub)',
+  'Casino provider monthly fee (Microgames)','Wages','Rent','Hosting server - (Arruba )',
+  'Designers outsource (Skin Srl)','SMS (Mobivate )','CRM tool (Optimove )','Affilka',
+  'Integrations','Certification labs','Audit - Profesional fees (Crowe Bompani)',
+  'Accouting - Profesional fees (MGS)','Legal - Profesional fees',
+  'Technical compliance - Profesional fees  (Kogem)','Bank Charges','Travel, Hospitality & other',
+  'Contigency','FIX COST','TOTAL COSTS','EBITDA','CIT','P&L','License fix fee (amortization)','EBIT'
+];
+
+function normPnlLabel(s){
+  return (s||'').toString().replace(/\s+/g,' ').trim();
+}
+
+function parsePnlMonthHeader(val){
+  /* row 1 cells render as "MM/yyyy" strings (SheetJS honors the cell's own
+     Excel number format here), but fall back to Date objects or ISO strings
+     too, in case a future export uses a different format. */
+  if(!val) return null;
+  if(val instanceof Date){
+    const y = val.getFullYear(), mo = String(val.getMonth()+1).padStart(2,'0');
+    return y+'-'+mo;
+  }
+  const s = val.toString().trim();
+  let m = s.match(/^(\d{2})\/(\d{4})$/);          /* MM/yyyy */
+  if(m) return m[2]+'-'+m[1];
+  m = s.match(/^(\d{4})-(\d{2})/);                 /* yyyy-MM... (ISO) */
+  if(m) return m[1]+'-'+m[2];
+  m = s.match(/^(\d{4})\/(\d{2})/);                /* yyyy/MM */
+  if(m) return m[1]+'-'+m[2];
+  return null;
+}
+
+function handlePnlFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try{
+      const data = new Uint8Array(ev.target.result);
+      const wb   = XLSX.read(data, {type:'array', cellDates:true});
+      const sheetName = wb.SheetNames.find(n=>n.toLowerCase().includes('pnl vs forecast') || n.toLowerCase().includes('pnl') && n.toLowerCase().includes('forecast'));
+      if(!sheetName){ alert(t('fileNonValidoPnl')); return; }
+      const ws   = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:false, dateNF:'yyyy-mm-dd'});
+
+      /* row 1 (index 0): month headers across columns
+         row 2 (index 1): channel labels (TOTAL / ONLINE / PVR)
+         row 3 (index 2): segment labels (Sports+Horse / Casino+Virtual / blank=TOTAL)
+         row 5 (index 4): metric labels (Actuals / Fcst / Achieved % / Difference) */
+      const rowMonth   = rows[0]||[];
+      const rowChannel = rows[1]||[];
+      const rowSegment = rows[2]||[];
+      const rowMetric  = rows[4]||[];
+
+      /* find month block start columns */
+      const monthBlocks = [];
+      for(let c=0;c<rowMonth.length;c++){
+        const mk = parsePnlMonthHeader(rowMonth[c]);
+        if(mk) monthBlocks.push({monthKey:mk, startCol:c});
+      }
+      if(!monthBlocks.length){ alert(t('fileNonValidoPnl')); return; }
+
+      /* for each month block, scan forward column by column (within the block's
+         span up to the next block's start) building a column->{channel,segment,metric} map.
+         Channel/segment carry forward (sparse fill) until a new label appears. */
+      function buildColumnMap(blockStart, blockEnd){
+        const map = {};
+        let curChannel = 'TOTAL';
+        let curSegment = 'TOTAL';
+        for(let c=blockStart;c<blockEnd;c++){
+          const chRaw = normPnlLabel(rowChannel[c]);
+          const segRaw = normPnlLabel(rowSegment[c]);
+          const metRaw = normPnlLabel(rowMetric[c]).toLowerCase();
+          if(chRaw){
+            const chU = chRaw.toUpperCase();
+            if(chU.includes('ONLINE')) curChannel='ONLINE';
+            else if(chU.includes('PVR')) curChannel='PVR';
+            else if(chU.includes('TOTAL')) curChannel='TOTAL';
+          }
+          if(segRaw){
+            const segU = segRaw.toUpperCase();
+            if(segU.includes('SPORT')) curSegment='SPORT';
+            else if(segU.includes('CASINO')) curSegment='CASINO';
+          } else if(chRaw){
+            /* a new channel label without segment text means the TOTAL sub-column for that channel */
+            curSegment='TOTAL';
+          }
+          let metric = null;
+          if(metRaw.includes('achiev')) metric='achieved';
+          else if(metRaw.includes('fcst')||metRaw.includes('forecast')) metric='fcst';
+          else if(metRaw.includes('actual')) metric='actuals';
+          else if(metRaw.includes('differ')) metric='difference';
+          if(metric){
+            map[c] = {channel:curChannel, segment:curSegment, metric:metric};
+          }
+        }
+        return map;
+      }
+
+      const parsedByMonth = {};
+      monthBlocks.forEach(function(b, idx){
+        const blockEnd = idx+1<monthBlocks.length ? monthBlocks[idx+1].startCol : rowMonth.length;
+        const colMap = buildColumnMap(b.startCol, blockEnd);
+        const channels = {TOTAL:{TOTAL:{actuals:{},fcst:{},achieved:{}},SPORT:{actuals:{},fcst:{},achieved:{}},CASINO:{actuals:{},fcst:{},achieved:{}}},
+                           ONLINE:{TOTAL:{actuals:{},fcst:{},achieved:{}},SPORT:{actuals:{},fcst:{},achieved:{}},CASINO:{actuals:{},fcst:{},achieved:{}}},
+                           PVR:{TOTAL:{actuals:{},fcst:{},achieved:{}},SPORT:{actuals:{},fcst:{},achieved:{}},CASINO:{actuals:{},fcst:{},achieved:{}}}};
+
+        /* walk every indicator row (1-indexed in original sheet => rows array idx = rowNum-1) */
+        for(let r=5;r<rows.length;r++){
+          const label = normPnlLabel((rows[r]||[])[0]);
+          if(!label) continue;
+          const dataRow = rows[r]||[];
+          Object.keys(colMap).forEach(function(cStr){
+            const c = +cStr;
+            const info = colMap[c];
+            if(info.metric==='difference') return; /* skip raw difference, derivable from actuals-fcst */
+            const raw = dataRow[c];
+            const val = cleanPnlNumber(raw);
+            if(val===null) return;
+            const bucket = channels[info.channel][info.segment][info.metric];
+            bucket[label] = val;
+          });
+        }
+        parsedByMonth[b.monthKey] = {channels};
+      });
+
+      pnlPendingMonths = monthBlocks.map(b=>b.monthKey).sort();
+      pnlPendingData = parsedByMonth;
+      showPnlPreview();
+    }catch(err){
+      console.error('[P&L] Errore parsing file:', err);
+      alert(t('fileNonValidoPnl'));
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function showPnlPreview(){
+  if(!pnlPendingData) return;
+  document.getElementById('pnl-preview-content').innerHTML =
+    `<div class="preview-stat">${currentLang==='en'?'Months detected':'Mesi rilevati'}: <strong>${pnlPendingMonths.map(ml).join(', ')}</strong></div>`;
+  document.getElementById('pnl-preview-zone').style.display='block';
+}
+
+function confirmPnlUpload(){
+  if(!pnlPendingData) return;
+  pnlPendingMonths.forEach(function(mk){ pnlDb[mk]=pnlPendingData[mk]; });
+  savePnlDB();
+  pnlPendingData=null;
+  pnlPendingMonths=[];
+  document.getElementById('pnl-preview-zone').style.display='none';
+  document.getElementById('pnl-file-input').value='';
+  showToast(t('datiSalvati')+' P&L');
+  renderPnl();
+}
+
+function cancelPnlUpload(){
+  pnlPendingData=null;
+  pnlPendingMonths=[];
+  document.getElementById('pnl-preview-zone').style.display='none';
+  document.getElementById('pnl-file-input').value='';
+}
+
+function pnlMonths(){ return Object.keys(pnlDb).sort(); }
+
+function savePnlDB(){
+  try{ localStorage.setItem('mbt_pnl_db', JSON.stringify(pnlDb)); }catch(e){}
+  syncPnlToFirestore();
+}
+function loadPnlDB(){
+  try{
+    const raw=localStorage.getItem('mbt_pnl_db');
+    if(raw) pnlDb=JSON.parse(raw);
+  }catch(e){}
+}
+async function syncPnlToFirestore(){
+  if(!fbDb||!currentUser) return;
+  try{
+    const docId = currentUser.uid + '_pnl';
+    await fbDb.collection('pnlData').doc(docId).set({
+      userId: currentUser.uid, data: pnlDb, updatedAt: new Date().toISOString()
+    });
+  }catch(e){ console.error('[P&L] Firestore save error:', e); }
+}
+async function loadPnlFromFirestore(){
+  if(!fbDb||!currentUser) return;
+  try{
+    const readUid = (!isAdminUser && userPerms && userPerms.ownerUid) ? userPerms.ownerUid : currentUser.uid;
+    const docId = readUid + '_pnl';
+    const doc = await fbDb.collection('pnlData').doc(docId).get();
+    if(doc.exists){
+      const d=doc.data();
+      if(d.data){ pnlDb=d.data; renderPnl(); }
+    }
+  }catch(e){ console.error('[P&L] Firestore load error:', e); }
+}
+
+function cleanPnlNumber(raw, isPercent){
+  if(raw===null||raw===undefined||raw==='') return null;
+  let s = raw.toString().trim();
+  if(!s) return null;
+  const isPct = isPercent || s.includes('%');
+  /* normalize "- 1,234 €" -> "-1234", strip currency symbols, thousand commas, spaces, % sign */
+  s = s.replace(/[€$£]/g,'').replace(/%/g,'').replace(/\s+/g,'');
+  s = s.replace(/^-\s*/, '-'); /* collapse any space between minus and digits (already removed above, kept for clarity) */
+  s = s.replace(/,/g,'');
+  const v = parseFloat(s);
+  if(isNaN(v)) return null;
+  return isPct ? v/100 : v;
+}
+
+function pnlVal(monthKey, channel, segment, metric, indicator){
+  const m = pnlDb[monthKey];
+  if(!m) return null;
+  const bucket = m.channels && m.channels[channel] && m.channels[channel][segment] && m.channels[channel][segment][metric];
+  if(!bucket) return null;
+  const v = bucket[indicator];
+  return (v===undefined) ? null : v;
+}
+
+function renderPnl(){
+  const ms = pnlMonths();
+  if(!ms.length){
+    document.getElementById('kpi-pnl').innerHTML='';
+    document.getElementById('tbl-pnl').innerHTML='<div class="empty-state"><div class="empty-icon">💰</div><div class="empty-text">'+t('nessunDatoPnl')+'</div></div>';
+    return;
+  }
+
+  ['pnl-from','pnl-to'].forEach(function(id){
+    const sel=document.getElementById(id);
+    if(!sel) return;
+    const cur=sel.value;
+    while(sel.options.length>1) sel.remove(1);
+    ms.forEach(function(m){sel.add(new Option(ml(m),m));});
+    if(cur&&ms.includes(cur)) sel.value=cur;
+  });
+
+  const fromEl=document.getElementById('pnl-from');
+  const toEl=document.getElementById('pnl-to');
+  let fromV=fromEl?fromEl.value:'';
+  let toV=toEl?toEl.value:'';
+  if(!fromV) fromV=ms[0];
+  if(!toV) toV=ms[ms.length-1];
+  let fi=ms.indexOf(fromV), ti=ms.indexOf(toV);
+  if(fi<0) fi=0; if(ti<0) ti=ms.length-1;
+  if(fi>ti){const tmp=fi;fi=ti;ti=tmp;}
+  const filtMs=ms.slice(fi,ti+1);
+  const lastM=filtMs[filtMs.length-1];
+
+  const channel = document.getElementById('pnl-channel').value;
+  const segment = document.getElementById('pnl-segment').value;
+  const metric  = document.getElementById('pnl-metric').value;
+
+  /* ── KPI cards: last month snapshot ── */
+  const ebitdaLast = pnlVal(lastM, channel, segment, metric, 'EBITDA');
+  const ngrLast     = pnlVal(lastM, channel, segment, metric, 'NGR 2nd Level');
+  const turnoverLast= pnlVal(lastM, channel, segment, metric, 'Turnover');
+  const marginLast  = pnlVal(lastM, channel, segment, metric, 'Margin');
+  const fmtVal = (v) => v===null ? '—' : (metric==='achieved' ? fp(v*100) : fe(v));
+
+  document.getElementById('kpi-pnl').innerHTML = `
+    <div class="kpi-card"><div class="kpi-label">Turnover</div><div class="kpi-value">${fmtVal(turnoverLast)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Margin</div><div class="kpi-value">${marginLast===null?'—':(metric==='achieved'?fp(marginLast*100):fp(marginLast*100))}</div></div>
+    <div class="kpi-card"><div class="kpi-label">NGR 2nd Level</div><div class="kpi-value">${fmtVal(ngrLast)}</div></div>
+    <div class="kpi-card" style="border-left:2px solid var(--red)"><div class="kpi-label">EBITDA</div><div class="kpi-value" style="color:var(--red)">${fmtVal(ebitdaLast)}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:4px">${ml(lastM)} · ${channel} / ${segment}</div>
+    </div>
+  `;
+
+  /* ── Trend charts: EBITDA and NGR 2nd Level across filtMs (actuals only, for trend clarity) ── */
+  const ebitdaTrend = filtMs.map(function(m){ return pnlVal(m, channel, segment, 'actuals', 'EBITDA'); });
+  const ngrTrend     = filtMs.map(function(m){ return pnlVal(m, channel, segment, 'actuals', 'NGR 2nd Level'); });
+
+  if(window.cPnlEbitda) window.cPnlEbitda.destroy();
+  const ebitdaCtx = document.getElementById('chart-pnl-ebitda');
+  if(ebitdaCtx){
+    window.cPnlEbitda = new Chart(ebitdaCtx,{
+      type:'line',
+      data:{labels:filtMs.map(ml),datasets:[{label:'EBITDA',data:ebitdaTrend,borderColor:'#e8001c',backgroundColor:'rgba(232,0,28,.08)',fill:true,tension:.3,pointRadius:3,spanGaps:true}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+        scales:{y:{ticks:{color:'#64748b',callback:v=>'€'+fn(v)},grid:{color:'rgba(128,128,128,0.1)'}},
+                x:{ticks:{color:'#94a3b8',font:{size:11}},grid:{display:false}}}}
+    });
+  }
+  if(window.cPnlNgr) window.cPnlNgr.destroy();
+  const ngrCtx = document.getElementById('chart-pnl-ngr');
+  if(ngrCtx){
+    window.cPnlNgr = new Chart(ngrCtx,{
+      type:'line',
+      data:{labels:filtMs.map(ml),datasets:[{label:'NGR 2nd Level',data:ngrTrend,borderColor:'#7dd3fc',backgroundColor:'rgba(125,211,252,.08)',fill:true,tension:.3,pointRadius:3,spanGaps:true}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+        scales:{y:{ticks:{color:'#64748b',callback:v=>'€'+fn(v)},grid:{color:'rgba(128,128,128,0.1)'}},
+                x:{ticks:{color:'#94a3b8',font:{size:11}},grid:{display:false}}}}
+    });
+  }
+
+  /* ── Full indicator table: rows = indicators, columns = months (for selected channel/segment/metric) ── */
+  const monthCols = filtMs.map(function(m){ return `<th class="th-num">${ml(m)}</th>`; }).join('');
+
+  document.getElementById('tbl-pnl').innerHTML = `
+  <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;padding:12px 18px;border-bottom:1px solid var(--border)">
+    ${channel} / ${segment} — ${metric==='actuals'?t('actuals'):metric==='fcst'?t('forecastLbl'):t('achievedPct')}
+  </div>
+  <div style="overflow-x:auto">
+  <table><thead><tr><th style="position:sticky;left:0;background:var(--card-bg)">${currentLang==='en'?'Indicator':'Indicatore'}</th>${monthCols}</tr></thead><tbody>${PNL_INDICATORS.map(function(ind){
+    const cells = filtMs.map(function(m){
+      const v = pnlVal(m, channel, segment, metric, ind);
+      const isPct = metric==='achieved';
+      return `<td class="td-num">${v===null?'<span style="color:var(--text3)">—</span>':(isPct?fp(v*100):fe(v))}</td>`;
+    }).join('');
+    const isBold = ['EBITDA','EBIT','TOTAL COSTS','Gross Profit after Marketing','P&L'].includes(ind);
+    return `<tr${isBold?' style="font-weight:700;background:rgba(232,0,28,.04)"':''}><td style="position:sticky;left:0;background:${isBold?'rgba(232,0,28,.04)':'var(--card-bg)'};font-size:12px">${ind}</td>${cells}</tr>`;
+  }).join('')}</tbody></table>
+  </div>`;
 }
 
 
@@ -3625,6 +4059,7 @@ function appInit(){
   if(mi && !mi.value) mi.value = def;
   loadDB();
   loadOpDB();
+  loadPnlDB();
   updateBadge();
   initTheme();
   renderOverview();
@@ -3632,6 +4067,7 @@ function appInit(){
   /* fetch fresh data from Firestore cloud (async, updates UI when done) */
   loadFromFirestore();
   loadOpFromFirestore();
+  loadPnlFromFirestore();
 }
 
 /* ════════════════════════════════════════════════════
