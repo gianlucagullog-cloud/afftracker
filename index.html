@@ -367,6 +367,7 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
       <button class="header-btn theme-toggle-btn" onclick="toggleTheme()" id="theme-btn" title="Cambia tema">
         <span id="theme-icon">☀️</span> <span data-i18n="light">Light</span>
       </button>
+      <button class="header-btn" id="btn-account" onclick="openAccountPopup()" style="display:none" data-i18n="account">⚙ Account</button>
       <button class="header-btn" onclick="exportXLSX()" data-i18n="exportExcel">⬇ Esporta Excel</button>
     </div>
   </div>
@@ -723,6 +724,65 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
   <div id="op-popup-body" style="padding:20px 24px"></div>
 </div>
 
+<!-- ACCOUNT / USER MANAGEMENT POPUP -->
+<div id="account-popup-overlay" onclick="closeAccountPopup()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;backdrop-filter:blur(3px)"></div>
+<div id="account-popup" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--card-bg);border:1px solid var(--border);border-radius:16px;width:min(700px,95vw);max-height:85vh;overflow-y:auto;z-index:1001;box-shadow:0 24px 64px rgba(0,0,0,.5)">
+  <div style="padding:18px 24px;background:linear-gradient(135deg,#0a1628,#1a2942);position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;color:#fff" data-i18n="gestioneAccount">⚙ Gestione Account</div>
+    <button onclick="closeAccountPopup()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:16px;flex-shrink:0">✕</button>
+  </div>
+  <div style="padding:20px 24px">
+
+    <!-- CHANGE PASSWORD -->
+    <div class="section-label" data-i18n="cambiaPassword">Cambia la tua password</div>
+    <div class="table-wrap" style="margin-bottom:28px">
+      <div style="padding:16px 18px;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+        <div><label class="field-label" data-i18n="passwordAttuale">Password attuale</label>
+          <input type="password" class="tbl-search" id="cp-current" style="width:180px"></div>
+        <div><label class="field-label" data-i18n="nuovaPassword">Nuova password</label>
+          <input type="password" class="tbl-search" id="cp-new" style="width:180px"></div>
+        <div><label class="field-label" data-i18n="confermaPassword">Conferma password</label>
+          <input type="password" class="tbl-search" id="cp-confirm" style="width:180px"></div>
+        <button class="btn-confirm" onclick="changeAdminPassword()" data-i18n="aggiornaPassword">Aggiorna password</button>
+      </div>
+      <div id="cp-msg" style="padding:0 18px 14px;font-size:12px"></div>
+    </div>
+
+    <!-- CREATE USER -->
+    <div class="section-label" data-i18n="creaNuovoUtente">Crea nuovo utente</div>
+    <div class="table-wrap" style="margin-bottom:20px">
+      <div style="padding:16px 18px">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
+          <div><label class="field-label" data-i18n="username">Username</label>
+            <input class="tbl-search" id="nu-username" placeholder="mario.rossi" style="width:160px"></div>
+          <div><label class="field-label" data-i18n="passwordLbl">Password</label>
+            <input type="password" class="tbl-search" id="nu-password" style="width:160px"></div>
+        </div>
+        <div style="margin-bottom:14px">
+          <label class="field-label" data-i18n="retiConsentite">Reti consentite</label>
+          <div id="nu-networks" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"></div>
+        </div>
+        <div style="margin-bottom:14px">
+          <label class="field-label" data-i18n="tabConsentite">Tab visibili</label>
+          <div id="nu-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+            <label class="hide-inactive-toggle"><input type="checkbox" value="overview" checked> <span data-i18n="tabOverview">📊 Overview</span></label>
+            <label class="hide-inactive-toggle"><input type="checkbox" value="affiliati" checked> <span data-i18n="tabAffiliati">👥 Affiliati</span></label>
+            <label class="hide-inactive-toggle"><input type="checkbox" value="categorie" checked> <span data-i18n="tabCategorie">🎰 Categorie</span></label>
+            <label class="hide-inactive-toggle"><input type="checkbox" value="trend" checked> <span data-i18n="tabPerformance">📈 Performance</span></label>
+            <label class="hide-inactive-toggle"><input type="checkbox" value="operatori"> <span data-i18n="tabOperatori">🏆 Operatori</span></label>
+          </div>
+        </div>
+        <button class="btn-confirm" onclick="createNewUser()" data-i18n="creaUtente">✓ Crea utente</button>
+      </div>
+      <div id="nu-msg" style="padding:0 18px 14px;font-size:12px"></div>
+    </div>
+
+    <!-- EXISTING USERS LIST -->
+    <div class="section-label" data-i18n="utentiEsistenti">Utenti esistenti</div>
+    <div class="table-wrap"><div id="existing-users-list"></div></div>
+  </div>
+</div>
+
 <script>
 /* ════ APP FUNCTIONS ════ */
 /* ════════════════════════════════════════════════════
@@ -774,6 +834,29 @@ const I18N = {
     posizione: 'Posizione',
     nessunDatoOperatori: 'Nessun dato operatori caricato.',
     fileNonValidoOperatori: 'File non valido. Verifica che sia nel formato Italy Market Share con intestazioni mensili.',
+    account: '⚙ Account',
+    gestioneAccount: '⚙ Gestione Account',
+    cambiaPassword: 'Cambia la tua password',
+    passwordAttuale: 'Password attuale',
+    nuovaPassword: 'Nuova password',
+    confermaPassword: 'Conferma password',
+    aggiornaPassword: 'Aggiorna password',
+    compilaTuttiCampi: 'Compila tutti i campi.',
+    passwordNonCoincidono: 'Le password non coincidono.',
+    passwordTroppoCorta: 'La password deve avere almeno 6 caratteri.',
+    passwordAggiornata: '✓ Password aggiornata con successo.',
+    passwordAttualeErrata: 'Password attuale errata.',
+    creaNuovoUtente: 'Crea nuovo utente',
+    username: 'Username',
+    passwordLbl: 'Password',
+    retiConsentite: 'Reti consentite',
+    tabConsentite: 'Tab visibili',
+    creaUtente: '✓ Crea utente',
+    utenteCreato: '✓ Utente creato:',
+    usernameGiaUsato: 'Questo username è già in uso.',
+    utentiEsistenti: 'Utenti esistenti',
+    confermaRimuoviUtente: 'Vuoi davvero rimuovere questo utente? Non potrà più accedere.',
+    utenteRimosso: '✓ Utente rimosso.',
     /* overview filters */
     filtersOverview: 'Filtri overview',
     from: 'Da...',
@@ -940,6 +1023,29 @@ const I18N = {
     posizione: 'Rank',
     nessunDatoOperatori: 'No operator data uploaded yet.',
     fileNonValidoOperatori: 'Invalid file. Check that it follows the Italy Market Share format with monthly headers.',
+    account: '⚙ Account',
+    gestioneAccount: '⚙ Account Management',
+    cambiaPassword: 'Change your password',
+    passwordAttuale: 'Current password',
+    nuovaPassword: 'New password',
+    confermaPassword: 'Confirm password',
+    aggiornaPassword: 'Update password',
+    compilaTuttiCampi: 'Fill in all fields.',
+    passwordNonCoincidono: 'Passwords do not match.',
+    passwordTroppoCorta: 'Password must be at least 6 characters.',
+    passwordAggiornata: '✓ Password updated successfully.',
+    passwordAttualeErrata: 'Current password is incorrect.',
+    creaNuovoUtente: 'Create new user',
+    username: 'Username',
+    passwordLbl: 'Password',
+    retiConsentite: 'Allowed networks',
+    tabConsentite: 'Visible tabs',
+    creaUtente: '✓ Create user',
+    utenteCreato: '✓ User created:',
+    usernameGiaUsato: 'This username is already taken.',
+    utentiEsistenti: 'Existing users',
+    confermaRimuoviUtente: 'Are you sure you want to remove this user? They will no longer be able to log in.',
+    utenteRimosso: '✓ User removed.',
     /* overview filters */
     filtersOverview: 'Overview filters',
     from: 'From...',
@@ -2184,6 +2290,228 @@ function closeOpPopup(){
   document.getElementById('op-popup').style.display='none';
   document.body.style.overflow='';
 }
+/* ════════════════════════════════════════════════════
+   ACCOUNT MANAGEMENT — admin detection, user creation,
+   password change, network/tab permission gating
+   ════════════════════════════════════════════════════ */
+let isAdminUser = false;
+let userPerms   = null; /* {ownerUid, allowedNetworks:[...], allowedTabs:[...], username} for non-admin users */
+let secondaryFbApp = null; /* isolated Firebase app instance used only to create new users without affecting admin session */
+
+async function checkIsAdmin(uid){
+  if(!fbDb) return false;
+  try{
+    const doc = await fbDb.collection('adminUsers').doc(uid).get();
+    return doc.exists;
+  }catch(e){
+    console.error('[Account] Errore verifica admin:', e);
+    return false;
+  }
+}
+
+async function loadUserPermissions(uid){
+  if(!fbDb) return null;
+  try{
+    const doc = await fbDb.collection('userPermissions').doc(uid).get();
+    return doc.exists ? doc.data() : null;
+  }catch(e){
+    console.error('[Account] Errore caricamento permessi utente:', e);
+    return null;
+  }
+}
+
+function applyTabPermissions(){
+  if(isAdminUser || !userPerms){ return; } /* admin sees everything */
+  const allowed = userPerms.allowedTabs || [];
+  const tabMap = {
+    overview:  "switchTab('overview'",
+    affiliati: "switchTab('affiliati'",
+    categorie: "switchTab('categorie'",
+    trend:     "switchTab('trend'",
+    operatori: "switchTab('operatori'"
+  };
+  document.querySelectorAll('.tabs .tab').forEach(function(btn){
+    const onclick = btn.getAttribute('onclick')||'';
+    let key = null;
+    Object.keys(tabMap).forEach(function(k){ if(onclick.includes(tabMap[k])) key=k; });
+    if(key && !allowed.includes(key)){
+      btn.style.display='none';
+    }
+  });
+  /* hide upload tab entirely for non-admins */
+  const uploadBtn = document.querySelector(".tabs .tab[onclick*=\"switchTab('upload'\"]");
+  if(uploadBtn) uploadBtn.style.display='none';
+  /* hide account button for non-admins (defensive, also controlled elsewhere) */
+  const acctBtn = document.getElementById('btn-account');
+  if(acctBtn) acctBtn.style.display='none';
+
+  /* if current active tab got hidden, switch to first allowed tab */
+  const activeBtn = document.querySelector('.tabs .tab.active');
+  if(activeBtn && activeBtn.style.display==='none' && allowed.length){
+    const firstKey = allowed[0];
+    const firstBtn = document.querySelector(`.tabs .tab[onclick*="switchTab('${firstKey}'"]`);
+    if(firstBtn) firstBtn.click();
+  }
+}
+
+/* Filter a row array by allowed networks (used for non-admin viewers).
+   If userPerms is null or user is admin, returns rows unchanged. */
+function filterRowsByNetworkPerm(rows){
+  if(isAdminUser || !userPerms || !userPerms.allowedNetworks || !userPerms.allowedNetworks.length) return rows;
+  const allowedNets = userPerms.allowedNetworks.map(function(n){return n.toLowerCase();});
+  return rows.filter(function(r){
+    return r.network && allowedNets.includes(r.network.toLowerCase());
+  });
+}
+
+/* ── ACCOUNT POPUP ── */
+function openAccountPopup(){
+  if(!isAdminUser){ return; }
+  populateNetworkCheckboxes();
+  renderExistingUsersList();
+  document.getElementById('account-popup-overlay').style.display='block';
+  document.getElementById('account-popup').style.display='block';
+  document.body.style.overflow='hidden';
+}
+function closeAccountPopup(){
+  document.getElementById('account-popup-overlay').style.display='none';
+  document.getElementById('account-popup').style.display='none';
+  document.body.style.overflow='';
+  document.getElementById('cp-msg').textContent='';
+  document.getElementById('nu-msg').textContent='';
+}
+
+function populateNetworkCheckboxes(){
+  const allNets=[...new Set(months().flatMap(function(m){return (db[m]||[]).map(function(r){return r.network;});}).filter(Boolean))].sort();
+  const wrap=document.getElementById('nu-networks');
+  wrap.innerHTML = allNets.length ? allNets.map(function(n){
+    return `<label class="hide-inactive-toggle"><input type="checkbox" class="nu-net-cb" value="${n}"> <span>${n}</span></label>`;
+  }).join('') : `<span style="color:var(--text3);font-size:12px">${currentLang==='en'?'No networks found in uploaded data yet':'Nessuna rete trovata nei dati caricati'}</span>`;
+}
+
+/* ── CHANGE ADMIN PASSWORD ── */
+async function changeAdminPassword(){
+  const curPass = document.getElementById('cp-current').value;
+  const newPass = document.getElementById('cp-new').value;
+  const confPass= document.getElementById('cp-confirm').value;
+  const msgEl   = document.getElementById('cp-msg');
+  msgEl.style.color='';
+  if(!curPass||!newPass||!confPass){
+    msgEl.style.color='#fca5a5'; msgEl.textContent=t('compilaTuttiCampi'); return;
+  }
+  if(newPass!==confPass){
+    msgEl.style.color='#fca5a5'; msgEl.textContent=t('passwordNonCoincidono'); return;
+  }
+  if(newPass.length<6){
+    msgEl.style.color='#fca5a5'; msgEl.textContent=t('passwordTroppoCorta'); return;
+  }
+  try{
+    const cred = firebase.auth.EmailAuthProvider.credential(currentUser.email, curPass);
+    await currentUser.reauthenticateWithCredential(cred);
+    await currentUser.updatePassword(newPass);
+    msgEl.style.color='#86efac'; msgEl.textContent=t('passwordAggiornata');
+    document.getElementById('cp-current').value='';
+    document.getElementById('cp-new').value='';
+    document.getElementById('cp-confirm').value='';
+  }catch(e){
+    msgEl.style.color='#fca5a5';
+    msgEl.textContent = e.code==='auth/wrong-password' ? t('passwordAttualeErrata')
+      : e.code==='auth/weak-password' ? t('passwordTroppoCorta')
+      : e.message;
+  }
+}
+
+/* ── CREATE NEW USER (uses isolated secondary Firebase app so the admin session is not affected) ── */
+async function createNewUser(){
+  const usernameRaw = document.getElementById('nu-username').value.trim();
+  const password     = document.getElementById('nu-password').value;
+  const msgEl = document.getElementById('nu-msg');
+  msgEl.style.color='';
+  if(!usernameRaw || !password){
+    msgEl.style.color='#fca5a5'; msgEl.textContent=t('compilaTuttiCampi'); return;
+  }
+  if(password.length<6){
+    msgEl.style.color='#fca5a5'; msgEl.textContent=t('passwordTroppoCorta'); return;
+  }
+  const username = usernameRaw.toLowerCase().replace(/[^a-z0-9._-]/g,'');
+  const fakeEmail = username + '@afftracker.local';
+
+  const allowedNetworks = Array.from(document.querySelectorAll('.nu-net-cb:checked')).map(function(cb){return cb.value;});
+  const allowedTabs     = Array.from(document.querySelectorAll('#nu-tabs input:checked')).map(function(cb){return cb.value;});
+
+  try{
+    /* isolated secondary app instance so creating the user doesn't switch the admin's active session */
+    if(!secondaryFbApp){
+      secondaryFbApp = firebase.initializeApp(FIREBASE_CONFIG, 'secondary');
+    }
+    const secAuth = secondaryFbApp.auth();
+    const cred = await secAuth.createUserWithEmailAndPassword(fakeEmail, password);
+    const newUid = cred.user.uid;
+
+    await fbDb.collection('userPermissions').doc(newUid).set({
+      ownerUid: currentUser.uid,
+      username: username,
+      allowedNetworks: allowedNetworks,
+      allowedTabs: allowedTabs,
+      createdAt: new Date().toISOString()
+    });
+
+    await secAuth.signOut();
+
+    msgEl.style.color='#86efac';
+    msgEl.textContent=t('utenteCreato')+' "'+username+'"';
+    document.getElementById('nu-username').value='';
+    document.getElementById('nu-password').value='';
+    renderExistingUsersList();
+  }catch(e){
+    msgEl.style.color='#fca5a5';
+    msgEl.textContent = e.code==='auth/email-already-in-use' ? t('usernameGiaUsato')
+      : e.code==='auth/weak-password' ? t('passwordTroppoCorta')
+      : e.message;
+  }
+}
+
+async function renderExistingUsersList(){
+  const wrap = document.getElementById('existing-users-list');
+  if(!fbDb||!currentUser){ wrap.innerHTML=''; return; }
+  try{
+    const snap = await fbDb.collection('userPermissions').where('ownerUid','==', currentUser.uid).get();
+    if(snap.empty){
+      wrap.innerHTML = `<div style="padding:16px;color:var(--text3);font-size:13px">${currentLang==='en'?'No users created yet.':'Nessun utente creato.'}</div>`;
+      return;
+    }
+    let rowsHtml='';
+    snap.forEach(function(doc){
+      const d=doc.data();
+      rowsHtml += `<tr>
+        <td><strong>${d.username||'—'}</strong></td>
+        <td>${(d.allowedNetworks||[]).join(', ')||'—'}</td>
+        <td>${(d.allowedTabs||[]).join(', ')||'—'}</td>
+        <td><button class="btn-cancel" style="padding:5px 10px;font-size:11px" onclick="deleteUserPermission('${doc.id}')">🗑 ${currentLang==='en'?'Remove':'Rimuovi'}</button></td>
+      </tr>`;
+    });
+    wrap.innerHTML = `<table><thead><tr>
+      <th data-i18n="username">Username</th><th data-i18n="retiConsentite">Reti consentite</th><th data-i18n="tabConsentite">Tab visibili</th><th></th>
+    </tr></thead><tbody>${rowsHtml}</tbody></table>`;
+  }catch(e){
+    console.error('[Account] Errore caricamento lista utenti:', e);
+    wrap.innerHTML = `<div style="padding:16px;color:#fca5a5;font-size:13px">${currentLang==='en'?'Error loading user list.':'Errore nel caricamento della lista utenti.'}</div>`;
+  }
+}
+
+async function deleteUserPermission(uid){
+  if(!confirm(t('confermaRimuoviUtente'))) return;
+  try{
+    await fbDb.collection('userPermissions').doc(uid).delete();
+    showToast(t('utenteRimosso'));
+    renderExistingUsersList();
+  }catch(e){
+    console.error('[Account] Errore rimozione utente:', e);
+    showToast(currentLang==='en'?'Could not remove user permissions':'Impossibile rimuovere i permessi utente', 'error');
+  }
+}
+
+
 function renderCategorie(){
   const ms=months();
   if(!ms.length){
@@ -2798,7 +3126,7 @@ function loadDB(){
     if(!s)return;
     const raw=JSON.parse(s);
     db={};
-    Object.entries(raw).forEach(([k,v])=>{db[normalizeKey(k)]=v;});
+    Object.entries(raw).forEach(([k,v])=>{db[normalizeKey(k)]=filterRowsByNetworkPerm(v);});
   }catch(e){}
 }
 function exportCSV(){
@@ -3383,13 +3711,35 @@ document.addEventListener('keydown', e=>{
   if(e.key==='Enter' && document.getElementById('login-screen').style.display!=='none') doLogin();
 });
 
-function onLoginSuccess(user){
+async function onLoginSuccess(user){
   currentUser = user;
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   const up = document.getElementById('user-pill-email');
   if(up) up.textContent = user.email;
+
+  /* determine admin status and load permissions for non-admin users */
+  isAdminUser = await checkIsAdmin(user.uid);
+  if(isAdminUser){
+    userPerms = null;
+    const acctBtn=document.getElementById('btn-account');
+    if(acctBtn) acctBtn.style.display='inline-flex';
+  } else {
+    userPerms = await loadUserPermissions(user.uid);
+    if(!userPerms){
+      /* no permissions configured — block access defensively */
+      showToast(currentLang==='en'?'No permissions configured for this account. Contact your administrator.':'Nessun permesso configurato per questo account. Contatta il tuo amministratore.', 'error');
+      await fbAuth.signOut();
+      document.getElementById('app').style.display='none';
+      document.getElementById('login-screen').style.display='flex';
+      return;
+    }
+    const acctBtn=document.getElementById('btn-account');
+    if(acctBtn) acctBtn.style.display='none';
+  }
+
   appInit();
+  applyTabPermissions();
 }
 
 async function doLogout(){
@@ -3443,11 +3793,13 @@ async function loadFromSupabase(){ /* alias kept for compatibility */
 async function loadFromFirestore(){
   if(!fbDb||!currentUser){ console.warn('[Firestore] fbDb o currentUser non disponibili', {fbDb:!!fbDb, currentUser:!!currentUser}); return; }
   setSyncStatus('syncing');
-  console.log('[Firestore] Caricamento dati per uid:', currentUser.uid);
+  /* viewers with restricted permissions read from the admin owner's data namespace, not their own */
+  const readUid = (!isAdminUser && userPerms && userPerms.ownerUid) ? userPerms.ownerUid : currentUser.uid;
+  console.log('[Firestore] Caricamento dati per uid:', readUid, isAdminUser?'(admin)':'(viewer, owner='+readUid+')');
   try{
     /* no orderBy server-side to avoid composite-index requirement; sort client-side */
     const snap = await fbDb.collection('uploads')
-      .where('userId','==', currentUser.uid)
+      .where('userId','==', readUid)
       .get();
     console.log('[Firestore] Documenti trovati:', snap.size);
     if(!snap.empty){
@@ -3455,7 +3807,7 @@ async function loadFromFirestore(){
         const docData = doc.data();
         console.log('[Firestore] Doc:', doc.id, '-> monthKey:', docData.monthKey, ', righe:', (docData.data||[]).length);
         const {monthKey, data} = docData;
-        if(monthKey && data) db[normalizeKey(monthKey)] = data;
+        if(monthKey && data) db[normalizeKey(monthKey)] = filterRowsByNetworkPerm(data);
       });
       try{ localStorage.setItem('mbt_aff_db', JSON.stringify(db)); }catch(e){}
       updateBadge();
