@@ -3098,33 +3098,44 @@ function renderPnl(){
     }).join('');
   }
 
+  const POSITIVE_LABELS = ['GGR/Rake','NGR 1st Level','NGR 2nd Level','Gross Profit after Marketing','EBITDA'];
+  const clickHint = `<span class="pnl-click-hint" style="margin-left:6px;font-size:10px;color:var(--text3);opacity:.55">↗</span>`;
+
   const bodyRows = PNL_ROWS.map(function(item){
     const labelPad = isSingleMonth ? 'padding:6px 10px;' : '';
     if(item.type==='row'){
       const isBold = ['EBITDA','EBIT','TOTAL COSTS','Gross Profit after Marketing','P&L'].includes(item.label);
+      const isPositive = POSITIVE_LABELS.includes(item.label);
       const isMarginRow = item.label==='Margin';
       const isCostRow = item.label==='BONUS COST';
       const isPlainNumRow = item.label==='FTD' || item.label==='UPC';
       const cellsHtml = isCostRow ? cellsForWithIncidence(item.label, isMarginRow) : cellsFor(item.label, isMarginRow, isPlainNumRow);
-      return `<tr class="clickable-row" onclick="openPnlPopup('${item.label}')" style="cursor:pointer;${isBold?'font-weight:700;background:rgba(232,0,28,.04)':''}"><td style="position:sticky;left:0;background:${isBold?'rgba(232,0,28,.04)':'var(--card-bg)'};font-size:12px;${labelPad}">${item.label}</td>${cellsHtml}</tr>`;
+      const rowBg = isPositive ? 'rgba(34,197,94,.08)' : (isBold ? 'rgba(232,0,28,.04)' : '');
+      const labelColor = isPositive ? '#22c55e' : 'var(--text)';
+      return `<tr class="clickable-row pnl-row" onclick="openPnlPopup('${item.label}')" style="cursor:pointer;${isBold||isPositive?'font-weight:700;':''}${rowBg?'background:'+rowBg+';':''}">
+        <td style="position:sticky;left:0;background:${rowBg||'var(--card-bg)'};font-size:12px;${labelPad}color:${labelColor}">${item.label}${clickHint}</td>${cellsHtml}</tr>`;
     }
     /* group: summary row (always visible, toggles expand/collapse on click) + detail rows (hidden unless
        expanded, clickable individually to open the popup). The summary row's own popup is opened via a
-       small inline icon, kept separate from the row click so toggling the group still works as expected. */
+       small inline icon, kept separate from the row click so toggling the group still works as expected.
+       Cost groups get a red/negative tint since they represent expense lines. */
     const isOpen = pnlExpandedGroups.has(item.label);
     const arrow = isOpen ? '▾' : '▸';
     const costGroups = ['Direct Costs','Marketing','Fixed Costs'];
+    const isCostGroup = costGroups.includes(item.label);
     const summaryCells = item.summaryLabel
-      ? (costGroups.includes(item.label) ? cellsForWithIncidence(item.summaryLabel) : cellsFor(item.summaryLabel))
+      ? (isCostGroup ? cellsForWithIncidence(item.summaryLabel) : cellsFor(item.summaryLabel))
       : displayMs.map(function(){ return `<td class="td-num"${cellPad?` style="padding:${cellPad}"`:''}></td>`; }).join('');
+    const groupBg = isCostGroup ? 'rgba(232,0,28,.07)' : 'rgba(125,211,252,.06)';
+    const groupColor = isCostGroup ? '#f87171' : 'var(--text)';
     const popupIcon = item.summaryLabel ? `<span onclick="event.stopPropagation();openPnlPopup('${item.summaryLabel}')" title="${currentLang==='en'?'View 12-month detail':'Vedi dettaglio 12 mesi'}" style="margin-left:8px;color:var(--text3);cursor:pointer;font-size:11px">📊</span>` : '';
-    const summaryRow = `<tr class="clickable-row" onclick="togglePnlGroup('${item.label}')" style="cursor:pointer;font-weight:700;background:rgba(125,211,252,.06)">
-      <td style="position:sticky;left:0;background:rgba(125,211,252,.06);font-size:12px;${labelPad}">
+    const summaryRow = `<tr class="clickable-row pnl-group-row" onclick="togglePnlGroup('${item.label}')" style="cursor:pointer;font-weight:700;background:${groupBg}">
+      <td style="position:sticky;left:0;background:${groupBg};font-size:12px;${labelPad}color:${groupColor}">
         <span style="display:inline-block;width:14px;color:var(--sky)">${arrow}</span>${item.summaryLabel||item.label}${popupIcon}
       </td>${summaryCells}</tr>`;
     const detailRows = isOpen ? item.children.map(function(childLabel){
       const isMarginChild = childLabel==='Margin';
-      return `<tr class="clickable-row" onclick="openPnlPopup('${childLabel}')" style="cursor:pointer"><td style="position:sticky;left:0;background:var(--card-bg);font-size:12px;padding-left:30px;${isSingleMonth?'padding-top:6px;padding-bottom:6px;':''}color:var(--text2)">${childLabel}</td>${cellsFor(childLabel, isMarginChild)}</tr>`;
+      return `<tr class="clickable-row pnl-row" onclick="openPnlPopup('${childLabel}')" style="cursor:pointer"><td style="position:sticky;left:0;background:var(--card-bg);font-size:12px;padding-left:30px;${isSingleMonth?'padding-top:6px;padding-bottom:6px;':''}color:var(--text2)">${childLabel}${clickHint}</td>${cellsFor(childLabel, isMarginChild)}</tr>`;
     }).join('') : '';
     return summaryRow + detailRows;
   }).join('');
