@@ -2889,10 +2889,8 @@ function handleFile(e){
       rake:    h.indexOf('rake'),
       tickets: h.indexOf('num ticket'),
       conti:   h.indexOf('conti attivi'),
-      bonus:   h.findIndex(x=>x.includes('bonus'))
+      bonus:   h.indexOf('bet bonus')
     };
-    console.log('[DEBUG] Header completo del file:', h);
-    console.log('[DEBUG] Indice colonna bonus trovato:', i.bonus, i.bonus>=0?('-> "'+h[i.bonus]+'"'):'(NON TROVATA)');
     pendingData = rows.slice(1).filter(r=>r[i.cod]).map(r=>({
       cat:     (r[i.cat]||'').toString().toLowerCase().trim(),
       aff:     (r[i.cod]||'').toString().trim(),
