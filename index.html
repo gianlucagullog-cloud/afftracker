@@ -1933,6 +1933,7 @@ function parseItalianMonthHeader(text){
 }
 
 function handleOpFile(e){
+  if(!isAdminUser){ showToast(currentLang==='en'?'Only the administrator can upload data.':'Solo l\'amministratore può caricare dati.', 'error'); return; }
   const file = e.target.files[0];
   if(!file) return;
   const reader = new FileReader();
@@ -2086,7 +2087,8 @@ async function syncOpToFirestore(){
 async function loadOpFromFirestore(){
   if(!fbDb||!currentUser) return;
   try{
-    const docId = currentUser.uid + '_operators';
+    const readUid = (!isAdminUser && userPerms && userPerms.ownerUid) ? userPerms.ownerUid : currentUser.uid;
+    const docId = readUid + '_operators';
     const doc = await fbDb.collection('operatorData').doc(docId).get();
     if(doc.exists){
       const d=doc.data();
@@ -2540,6 +2542,13 @@ function applyTabPermissions(){
   /* hide upload tab entirely for non-admins */
   const uploadBtn = document.querySelector(".tabs .tab[onclick*=\"switchTab('upload'\"]");
   if(uploadBtn) uploadBtn.style.display='none';
+  /* hide the upload zones embedded inside Operatori and P&L tabs too — these are
+     separate from the main "Carica Dati" tab and would otherwise stay clickable
+     for non-admin viewers even though that tab itself is hidden */
+  const opUpload = document.getElementById('op-upload-section');
+  if(opUpload) opUpload.style.display='none';
+  const pnlUpload = document.getElementById('pnl-upload-section');
+  if(pnlUpload) pnlUpload.style.display='none';
   /* hide account button for non-admins (defensive, also controlled elsewhere) */
   const acctBtn = document.getElementById('btn-account');
   if(acctBtn) acctBtn.style.display='none';
@@ -2812,6 +2821,7 @@ function parsePnlMonthHeader(val){
 }
 
 function handlePnlFile(e){
+  if(!isAdminUser){ showToast(currentLang==='en'?'Only the administrator can upload data.':'Solo l\'amministratore può caricare dati.', 'error'); return; }
   const file = e.target.files[0];
   if(!file) return;
   const reader = new FileReader();
@@ -3079,12 +3089,43 @@ function renderPnl(){
   /* ── Full indicator table: grouped rows with expand/collapse, columns = months ── */
   /* Most-recent month first (left to right), matching how the person wants to read recent performance first */
   const displayMs = filtMs.slice().reverse();
-  const monthCols = displayMs.map(function(m){ return `<th class="th-num">${ml(m)}</th>`; }).join('');
+  const isMultiMonth = displayMs.length>1;
+  const monthCols = (isMultiMonth ? `<th class="th-num" style="border-left:2px solid var(--border)">${currentLang==='en'?'Total':'Totale'}</th>` : '') +
+    displayMs.map(function(m){ return `<th class="th-num">${ml(m)}</th>`; }).join('');
   const isPct = metric==='achieved';
   const isSingleMonth = displayMs.length===1;
   const cellPad = isSingleMonth ? '6px 10px' : '';
+
+  /* Total column: sum across displayMs for currency values, average for percentage-style values
+     (Margin, or any view where the active metric is itself a percentage). */
+  function totalValueFor(label, valueSegmentOverride){
+    const seg = valueSegmentOverride || segment;
+    const vals = displayMs.map(function(m){ return pnlVal(m, channel, seg, metric, label); }).filter(function(v){ return v!==null; });
+    if(!vals.length) return null;
+    const sum = vals.reduce(function(a,b){ return a+b; }, 0);
+    return sum;
+  }
+  function totalCellHtml(label, forcePct, forcePlain, valueSegmentOverride){
+    if(!isMultiMonth) return '';
+    const usePct = forcePct || isPct;
+    const total = totalValueFor(label, valueSegmentOverride);
+    let formatted = '<span style="color:var(--text3)">—</span>';
+    if(total!==null){
+      if(usePct){
+        /* percentages are averaged, not summed, since summing them has no economic meaning */
+        const vals = displayMs.map(function(m){ return pnlVal(m, channel, valueSegmentOverride||segment, metric, label); }).filter(function(v){ return v!==null; });
+        const avg = vals.length ? vals.reduce(function(a,b){return a+b;},0)/vals.length : null;
+        formatted = avg===null ? formatted : fp(avg*100);
+      } else {
+        formatted = forcePlain ? fn(total) : fe(total);
+      }
+    }
+    const style = cellPad ? ` style="padding:${cellPad};border-left:2px solid var(--border);font-weight:700" ` : ` style="border-left:2px solid var(--border);font-weight:700"`;
+    return `<td class="td-num"${style}>${formatted}</td>`;
+  }
+
   function cellsFor(label, forcePct, forcePlain){
-    return displayMs.map(function(m){
+    return totalCellHtml(label, forcePct, forcePlain) + displayMs.map(function(m){
       const v = pnlVal(m, channel, segment, metric, label);
       const usePct = forcePct || isPct;
       const style = cellPad ? ` style="padding:${cellPad}"` : '';
@@ -3103,7 +3144,26 @@ function renderPnl(){
     const isFeedsOrProviders = label==='Trading Feeds' || label==='Game Providers';
     const valueSegment = isFeedsOrProviders ? 'TOTAL' : segment;
     const ggrSegmentOverride = label==='Trading Feeds' ? 'SPORT' : (label==='Game Providers' ? 'CASINO' : segment);
-    return displayMs.map(function(m){
+    const totalHtml = isMultiMonth ? (function(){
+      const usePct = forcePct || isPct;
+      const total = totalValueFor(label, valueSegment);
+      let formatted = '<span style="color:var(--text3)">—</span>';
+      let incidenceHtml = '';
+      if(total!==null && !usePct){
+        formatted = fe(total);
+        const ggrTotal = totalValueFor('GGR/Rake', ggrSegmentOverride);
+        if(ggrTotal!==null && ggrTotal!==0){
+          incidenceHtml = `<div style="font-size:10px;color:var(--text3);font-weight:400;margin-top:1px">${(total/ggrTotal*100).toFixed(1)}% GGR</div>`;
+        }
+      } else if(usePct){
+        const vals = displayMs.map(function(m){ return pnlVal(m, channel, valueSegment, metric, label); }).filter(function(v){ return v!==null; });
+        const avg = vals.length ? vals.reduce(function(a,b){return a+b;},0)/vals.length : null;
+        formatted = avg===null ? formatted : fp(avg*100);
+      }
+      const style = cellPad ? `padding:${cellPad};border-left:2px solid var(--border);font-weight:700` : 'border-left:2px solid var(--border);font-weight:700';
+      return `<td class="td-num" style="${style}">${formatted}${incidenceHtml}</td>`;
+    })() : '';
+    return totalHtml + displayMs.map(function(m){
       const v = pnlVal(m, channel, valueSegment, metric, label);
       const usePct = forcePct || isPct;
       const style = cellPad ? ` style="padding:${cellPad}"` : '';
@@ -3119,6 +3179,7 @@ function renderPnl(){
   }
 
   const POSITIVE_LABELS = ['GGR/Rake','NGR 1st Level','NGR 2nd Level','Gross Profit after Marketing','EBITDA'];
+  const NEGATIVE_LABELS = ['BONUS COST','Gaming Taxes','TOTAL COSTS'];
   const clickHint = `<span class="pnl-click-hint" style="margin-left:6px;font-size:10px;color:var(--text3);opacity:.55">↗</span>`;
 
   const bodyRows = PNL_ROWS.map(function(item){
@@ -3126,13 +3187,14 @@ function renderPnl(){
     if(item.type==='row'){
       const isBold = ['EBITDA','EBIT','TOTAL COSTS','Gross Profit after Marketing','P&L'].includes(item.label);
       const isPositive = POSITIVE_LABELS.includes(item.label);
+      const isNegative = NEGATIVE_LABELS.includes(item.label);
       const isMarginRow = item.label==='Margin';
       const isCostRow = item.label==='BONUS COST';
       const isPlainNumRow = item.label==='FTD' || item.label==='UPC';
       const cellsHtml = isCostRow ? cellsForWithIncidence(item.label, isMarginRow) : cellsFor(item.label, isMarginRow, isPlainNumRow);
-      const rowBg = isPositive ? 'rgba(34,197,94,.08)' : (isBold ? 'rgba(232,0,28,.04)' : '');
-      const labelColor = isPositive ? '#22c55e' : 'var(--text)';
-      return `<tr class="clickable-row pnl-row" onclick="openPnlPopup('${item.label}')" style="cursor:pointer;${isBold||isPositive?'font-weight:700;':''}${rowBg?'background:'+rowBg+';':''}">
+      const rowBg = isPositive ? 'rgba(34,197,94,.08)' : (isNegative ? 'rgba(232,0,28,.07)' : (isBold ? 'rgba(232,0,28,.04)' : ''));
+      const labelColor = isPositive ? '#22c55e' : (isNegative ? '#f87171' : 'var(--text)');
+      return `<tr class="clickable-row pnl-row" onclick="openPnlPopup('${item.label}')" style="cursor:pointer;${isBold||isPositive||isNegative?'font-weight:700;':''}${rowBg?'background:'+rowBg+';':''}">
         <td style="position:sticky;left:0;background:${rowBg||'var(--card-bg)'};font-size:12px;${labelPad}color:${labelColor}">${item.label}${clickHint}</td>${cellsHtml}</tr>`;
     }
     /* group: summary row (always visible, toggles expand/collapse on click) + detail rows (hidden unless
@@ -3141,11 +3203,11 @@ function renderPnl(){
        Cost groups get a red/negative tint since they represent expense lines. */
     const isOpen = pnlExpandedGroups.has(item.label);
     const arrow = isOpen ? '▾' : '▸';
-    const costGroups = ['Direct Costs','Marketing','Fixed Costs'];
+    const costGroups = ['Direct Costs','Partner Costs','Marketing','Fixed Costs'];
     const isCostGroup = costGroups.includes(item.label);
     const summaryCells = item.summaryLabel
       ? (isCostGroup ? cellsForWithIncidence(item.summaryLabel) : cellsFor(item.summaryLabel))
-      : displayMs.map(function(){ return `<td class="td-num"${cellPad?` style="padding:${cellPad}"`:''}></td>`; }).join('');
+      : (isMultiMonth ? `<td class="td-num" style="border-left:2px solid var(--border)"></td>` : '') + displayMs.map(function(){ return `<td class="td-num"${cellPad?` style="padding:${cellPad}"`:''}></td>`; }).join('');
     const groupBg = isCostGroup ? 'rgba(232,0,28,.07)' : 'rgba(125,211,252,.06)';
     const groupColor = isCostGroup ? '#f87171' : 'var(--text)';
     const popupIcon = item.summaryLabel ? `<span onclick="event.stopPropagation();openPnlPopup('${item.summaryLabel}')" title="${currentLang==='en'?'View 12-month detail':'Vedi dettaglio 12 mesi'}" style="margin-left:8px;color:var(--text3);cursor:pointer;font-size:11px">📊</span>` : '';
@@ -3855,6 +3917,7 @@ function updateBadge(){
 }
 
 function handleFile(e){
+  if(!isAdminUser){ showToast(currentLang==='en'?'Only the administrator can upload data.':'Solo l\'amministratore può caricare dati.', 'error'); return; }
   const file = e.target.files[0];
   if(!file) return;
   const reader = new FileReader();
