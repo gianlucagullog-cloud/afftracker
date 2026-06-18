@@ -2300,7 +2300,7 @@ let userPerms   = null; /* {ownerUid, allowedNetworks:[...], allowedTabs:[...], 
 async function checkIsAdmin(uid){
   if(!fbDb) return false;
   try{
-    const doc = await fbDb.collection('adminUsers').doc(uid).get();
+    const doc = await fbDb.collection('AdminUsers').doc(uid).get();
     return doc.exists;
   }catch(e){
     console.error('[Account] Errore verifica admin:', e);
