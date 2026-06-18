@@ -3095,12 +3095,16 @@ function renderPnl(){
   /* same as cellsFor but adds a small, muted "X% of GGR" sub-line under the main value —
      used for the cost rows where incidence-on-revenue is the useful read */
   function cellsForWithIncidence(label, forcePct){
-    /* Trading Feeds and Game Providers always measure incidence against
-       Sport / Casino GGR respectively, regardless of the active Segmento filter.
-       Every other cost row uses the GGR of whatever channel+segment is currently filtered. */
+    /* Trading Feeds and Game Providers have no per-segment breakdown in the source
+       file — only a TOTAL figure exists for them — so their own value always reads
+       segment=TOTAL regardless of the active Segmento filter, while their incidence
+       is still measured against Sport / Casino GGR respectively. Every other cost
+       row uses both value and GGR from whatever channel+segment is currently filtered. */
+    const isFeedsOrProviders = label==='Trading Feeds' || label==='Game Providers';
+    const valueSegment = isFeedsOrProviders ? 'TOTAL' : segment;
     const ggrSegmentOverride = label==='Trading Feeds' ? 'SPORT' : (label==='Game Providers' ? 'CASINO' : segment);
     return displayMs.map(function(m){
-      const v = pnlVal(m, channel, segment, metric, label);
+      const v = pnlVal(m, channel, valueSegment, metric, label);
       const usePct = forcePct || isPct;
       const style = cellPad ? ` style="padding:${cellPad}"` : '';
       const mainVal = v===null?'<span style="color:var(--text3)">—</span>':(usePct?fp(v*100):fe(v));
