@@ -2719,6 +2719,7 @@ function handlePnlFile(e){
             const segU = segRaw.toUpperCase();
             if(segU.includes('SPORT')) curSegment='SPORT';
             else if(segU.includes('CASINO')) curSegment='CASINO';
+            else if(segU.includes('TOTAL')) curSegment='TOTAL';
           } else if(chRaw){
             /* a new channel label without segment text means the TOTAL sub-column for that channel */
             curSegment='TOTAL';
