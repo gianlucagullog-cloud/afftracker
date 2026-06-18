@@ -2628,22 +2628,66 @@ let pnlPendingMonths = [];
    Captured once from the reference file; if the row layout shifts in a future
    upload, parsing falls back to scanning column A text for these labels instead
    of fixed row numbers, so this stays robust. */
-const PNL_INDICATORS = [
-  'FTD','UPC','New POS Activated','Active POS','Turnover','Margin','GGR/Rake',
-  'Deposits','Withdraw','Deposit + Withdraw','Cash Flow (Deposit - Withdraw)',
-  'BONUS COST','Gaming Taxes','NGR 1st Level','Exalogic direct cost','Trading Feeds',
-  'Concession fee','RG Contribution','PSP Processing fees','Game Providers','Direct Costs',
-  'NGR 2nd Level','Affiliates revenue share','PVR Agent Comission','Partners Direct Costs',
-  'Contribution NGR - Direct Costs','Branding & PVR Onboarding','Hospitality','SEO Link Building',
-  'Flat Fee','Turnover Fee','CPA','Marketing','Gross Profit after Marketing',
-  'Exalogic Monthly fee','Exalogic Trading Management','Exalogic ADM Service','KYC (SumSub)',
-  'Casino provider monthly fee (Microgames)','Wages','Rent','Hosting server - (Arruba )',
-  'Designers outsource (Skin Srl)','SMS (Mobivate )','CRM tool (Optimove )','Affilka',
-  'Integrations','Certification labs','Audit - Profesional fees (Crowe Bompani)',
-  'Accouting - Profesional fees (MGS)','Legal - Profesional fees',
-  'Technical compliance - Profesional fees  (Kogem)','Bank Charges','Travel, Hospitality & other',
-  'Contigency','FIX COST','TOTAL COSTS','EBITDA','CIT','P&L','License fix fee (amortization)','EBIT'
+/* Structured row layout for the P&L table: a mix of plain rows (always shown)
+   and expandable groups (a summary row always shown, with detail rows hidden
+   by default and toggleable). type: 'row' | 'group'. */
+const PNL_ROWS = [
+  {type:'row', label:'FTD'},
+  {type:'row', label:'UPC'},
+  {type:'row', label:'New POS Activated'},
+  {type:'row', label:'Active POS'},
+  {type:'row', label:'Turnover'},
+  {type:'row', label:'Margin'},
+  {type:'row', label:'GGR/Rake'},
+  {type:'row', label:'Deposits'},
+  {type:'row', label:'Withdraw'},
+  {type:'row', label:'Deposit + Withdraw'},
+  {type:'row', label:'Cash Flow (Deposit - Withdraw)'},
+  {type:'row', label:'BONUS COST'},
+  {type:'row', label:'Gaming Taxes'},
+  {type:'row', label:'NGR 1st Level'},
+  {type:'group', label:'Direct Costs', summaryLabel:'Direct Costs', children:[
+    'Exalogic direct cost','Trading Feeds','Concession fee','RG Contribution','PSP Processing fees','Game Providers'
+  ]},
+  {type:'row', label:'NGR 2nd Level'},
+  {type:'group', label:'Partner Costs', summaryLabel:'Partners Direct Costs', children:[
+    'Affiliates revenue share','PVR Agent Comission','Contribution NGR - Direct Costs'
+  ]},
+  {type:'group', label:'Marketing', summaryLabel:'Marketing', children:[
+    'Branding & PVR Onboarding','Hospitality','SEO Link Building','Flat Fee','Turnover Fee','CPA'
+  ]},
+  {type:'row', label:'Gross Profit after Marketing'},
+  {type:'group', label:'Fixed Costs', summaryLabel:'FIX COST', children:[
+    'Exalogic Monthly fee','Exalogic Trading Management','Exalogic ADM Service','KYC (SumSub)',
+    'Casino provider monthly fee (Microgames)','Wages','Rent','Hosting server - (Arruba )',
+    'Designers outsource (Skin Srl)','SMS (Mobivate )','CRM tool (Optimove )','Affilka',
+    'Integrations','Certification labs','Audit - Profesional fees (Crowe Bompani)',
+    'Accouting - Profesional fees (MGS)','Legal - Profesional fees',
+    'Technical compliance - Profesional fees  (Kogem)','Bank Charges','Travel, Hospitality & other',
+    'Contigency'
+  ]},
+  {type:'row', label:'TOTAL COSTS'},
+  {type:'row', label:'EBITDA'},
+  {type:'row', label:'CIT'},
+  {type:'row', label:'P&L'},
+  {type:'row', label:'License fix fee (amortization)'},
+  {type:'row', label:'EBIT'}
 ];
+
+/* Flat list of every indicator label, derived from PNL_ROWS, kept for the
+   parser (which still reads every row by its original sheet label). */
+const PNL_INDICATORS = PNL_ROWS.flatMap(function(r){
+  return r.type==='group' ? [r.summaryLabel].concat(r.children) : [r.label];
+});
+
+/* Tracks which groups are currently expanded in the P&L table (persists for the session) */
+let pnlExpandedGroups = new Set();
+function togglePnlGroup(groupLabel){
+  if(pnlExpandedGroups.has(groupLabel)) pnlExpandedGroups.delete(groupLabel);
+  else pnlExpandedGroups.add(groupLabel);
+  renderPnl();
+}
+
 
 function normPnlLabel(s){
   return (s||'').toString().replace(/\s+/g,' ').trim();
@@ -2933,23 +2977,40 @@ function renderPnl(){
     });
   }
 
-  /* ── Full indicator table: rows = indicators, columns = months (for selected channel/segment/metric) ── */
+  /* ── Full indicator table: grouped rows with expand/collapse, columns = months ── */
   const monthCols = filtMs.map(function(m){ return `<th class="th-num">${ml(m)}</th>`; }).join('');
+  const isPct = metric==='achieved';
+  function cellsFor(label){
+    return filtMs.map(function(m){
+      const v = pnlVal(m, channel, segment, metric, label);
+      return `<td class="td-num">${v===null?'<span style="color:var(--text3)">—</span>':(isPct?fp(v*100):fe(v))}</td>`;
+    }).join('');
+  }
+
+  const bodyRows = PNL_ROWS.map(function(item){
+    if(item.type==='row'){
+      const isBold = ['EBITDA','EBIT','TOTAL COSTS','Gross Profit after Marketing','P&L'].includes(item.label);
+      return `<tr${isBold?' style="font-weight:700;background:rgba(232,0,28,.04)"':''}><td style="position:sticky;left:0;background:${isBold?'rgba(232,0,28,.04)':'var(--card-bg)'};font-size:12px">${item.label}</td>${cellsFor(item.label)}</tr>`;
+    }
+    /* group: summary row (always visible, clickable) + detail rows (hidden unless expanded) */
+    const isOpen = pnlExpandedGroups.has(item.label);
+    const arrow = isOpen ? '▾' : '▸';
+    const summaryRow = `<tr class="clickable-row" onclick="togglePnlGroup('${item.label}')" style="cursor:pointer;font-weight:700;background:rgba(125,211,252,.06)">
+      <td style="position:sticky;left:0;background:rgba(125,211,252,.06);font-size:12px">
+        <span style="display:inline-block;width:14px;color:var(--sky)">${arrow}</span>${item.summaryLabel}
+      </td>${cellsFor(item.summaryLabel)}</tr>`;
+    const detailRows = isOpen ? item.children.map(function(childLabel){
+      return `<tr><td style="position:sticky;left:0;background:var(--card-bg);font-size:12px;padding-left:30px;color:var(--text2)">${childLabel}</td>${cellsFor(childLabel)}</tr>`;
+    }).join('') : '';
+    return summaryRow + detailRows;
+  }).join('');
 
   document.getElementById('tbl-pnl').innerHTML = `
   <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;padding:12px 18px;border-bottom:1px solid var(--border)">
     ${channel} / ${segment} — ${metric==='actuals'?t('actuals'):metric==='fcst'?t('forecastLbl'):t('achievedPct')}
   </div>
   <div style="overflow-x:auto">
-  <table><thead><tr><th style="position:sticky;left:0;background:var(--card-bg)">${currentLang==='en'?'Indicator':'Indicatore'}</th>${monthCols}</tr></thead><tbody>${PNL_INDICATORS.map(function(ind){
-    const cells = filtMs.map(function(m){
-      const v = pnlVal(m, channel, segment, metric, ind);
-      const isPct = metric==='achieved';
-      return `<td class="td-num">${v===null?'<span style="color:var(--text3)">—</span>':(isPct?fp(v*100):fe(v))}</td>`;
-    }).join('');
-    const isBold = ['EBITDA','EBIT','TOTAL COSTS','Gross Profit after Marketing','P&L'].includes(ind);
-    return `<tr${isBold?' style="font-weight:700;background:rgba(232,0,28,.04)"':''}><td style="position:sticky;left:0;background:${isBold?'rgba(232,0,28,.04)':'var(--card-bg)'};font-size:12px">${ind}</td>${cells}</tr>`;
-  }).join('')}</tbody></table>
+  <table><thead><tr><th style="position:sticky;left:0;background:var(--card-bg)">${currentLang==='en'?'Indicator':'Indicatore'}</th>${monthCols}</tr></thead><tbody>${bodyRows}</tbody></table>
   </div>`;
 }
 
