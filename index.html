@@ -3095,12 +3095,16 @@ function renderPnl(){
   /* same as cellsFor but adds a small, muted "X% of GGR" sub-line under the main value —
      used for the cost rows where incidence-on-revenue is the useful read */
   function cellsForWithIncidence(label, forcePct){
+    /* Trading Feeds and Game Providers always measure incidence against
+       Sport / Casino GGR respectively, regardless of the active Segmento filter.
+       Every other cost row uses the GGR of whatever channel+segment is currently filtered. */
+    const ggrSegmentOverride = label==='Trading Feeds' ? 'SPORT' : (label==='Game Providers' ? 'CASINO' : segment);
     return displayMs.map(function(m){
       const v = pnlVal(m, channel, segment, metric, label);
       const usePct = forcePct || isPct;
       const style = cellPad ? ` style="padding:${cellPad}"` : '';
       const mainVal = v===null?'<span style="color:var(--text3)">—</span>':(usePct?fp(v*100):fe(v));
-      const ggr = pnlVal(m, channel, segment, metric, 'GGR/Rake');
+      const ggr = pnlVal(m, channel, ggrSegmentOverride, metric, 'GGR/Rake');
       let incidenceHtml = '';
       if(v!==null && ggr!==null && ggr!==0 && !usePct){
         const incidencePct = (v/ggr)*100;
@@ -3145,9 +3149,12 @@ function renderPnl(){
       <td style="position:sticky;left:0;background:${groupBg};font-size:12px;${labelPad}color:${groupColor}">
         <span style="display:inline-block;width:14px;color:var(--sky)">${arrow}</span>${item.summaryLabel||item.label}${popupIcon}
       </td>${summaryCells}</tr>`;
+    const costGroupLabels = ['Direct Costs','Partner Costs','Marketing','Fixed Costs'];
+    const isCostGroupForChildren = costGroupLabels.includes(item.label);
     const detailRows = isOpen ? item.children.map(function(childLabel){
       const isMarginChild = childLabel==='Margin';
-      return `<tr class="clickable-row pnl-row" onclick="openPnlPopup('${childLabel}')" style="cursor:pointer"><td style="position:sticky;left:0;background:var(--card-bg);font-size:12px;padding-left:30px;${isSingleMonth?'padding-top:6px;padding-bottom:6px;':''}color:var(--text2)">${childLabel}${clickHint}</td>${cellsFor(childLabel, isMarginChild)}</tr>`;
+      const cellsHtml = isCostGroupForChildren ? cellsForWithIncidence(childLabel, isMarginChild) : cellsFor(childLabel, isMarginChild);
+      return `<tr class="clickable-row pnl-row" onclick="openPnlPopup('${childLabel}')" style="cursor:pointer"><td style="position:sticky;left:0;background:var(--card-bg);font-size:12px;padding-left:30px;${isSingleMonth?'padding-top:6px;padding-bottom:6px;':''}color:var(--text2)">${childLabel}${clickHint}</td>${cellsHtml}</tr>`;
     }).join('') : '';
     return summaryRow + detailRows;
   }).join('');
