@@ -691,8 +691,8 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
           <div style="position:relative;height:240px"><canvas id="chart-pnl-ebitda" role="img" aria-label="Trend EBITDA"></canvas></div>
         </div>
         <div class="chart-card">
-          <div class="chart-card-title" data-i18n="trendNgr">Trend NGR 2nd Level</div>
-          <div style="position:relative;height:240px"><canvas id="chart-pnl-ngr" role="img" aria-label="Trend NGR"></canvas></div>
+          <div class="chart-card-title" data-i18n="trendGgr">Trend GGR/Rake</div>
+          <div style="position:relative;height:240px"><canvas id="chart-pnl-ngr" role="img" aria-label="Trend GGR"></canvas></div>
         </div>
       </div>
 
@@ -788,6 +788,19 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
     <button onclick="closeOpPopup()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:16px;flex-shrink:0">✕</button>
   </div>
   <div id="op-popup-body" style="padding:20px 24px"></div>
+</div>
+
+<!-- P&L INDICATOR DETAIL POPUP -->
+<div id="pnl-popup-overlay" onclick="closePnlPopup()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;backdrop-filter:blur(3px)"></div>
+<div id="pnl-popup" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--card-bg);border:1px solid var(--border);border-radius:16px;width:min(680px,95vw);max-height:85vh;overflow-y:auto;z-index:1001;box-shadow:0 24px 64px rgba(0,0,0,.5)">
+  <div style="padding:18px 24px;background:linear-gradient(135deg,#0a1628,#1a2942);position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <div id="pnl-popup-title" style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;color:#fff;letter-spacing:.02em"></div>
+      <div id="pnl-popup-sub" style="font-size:12px;color:rgba(255,255,255,.65);margin-top:4px"></div>
+    </div>
+    <button onclick="closePnlPopup()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:16px;flex-shrink:0">✕</button>
+  </div>
+  <div id="pnl-popup-body" style="padding:20px 24px"></div>
 </div>
 
 <!-- ACCOUNT / USER MANAGEMENT POPUP -->
@@ -894,7 +907,7 @@ const I18N = {
     forecastLbl: 'Forecast',
     achievedPct: '% Achieved',
     trendEbitda: 'Trend EBITDA',
-    trendNgr: 'Trend NGR 2nd Level',
+    trendGgr: 'Trend GGR/Rake',
     tabUpload: '⬆ Carica dati',
     caricaMarketShare: 'Carica Italy Market Share',
     trasciaFileOperatori: 'Trascina qui il file Excel con i dati di market share mensili per operatore',
@@ -1097,7 +1110,7 @@ const I18N = {
     forecastLbl: 'Forecast',
     achievedPct: '% Achieved',
     trendEbitda: 'EBITDA Trend',
-    trendNgr: 'NGR 2nd Level Trend',
+    trendGgr: 'GGR/Rake Trend',
     tabUpload: '⬆ Upload data',
     caricaMarketShare: 'Upload Italy Market Share',
     trasciaFileOperatori: 'Drop the Excel file with monthly market share data per operator',
@@ -2387,6 +2400,83 @@ function closeOpPopup(){
   document.getElementById('op-popup').style.display='none';
   document.body.style.overflow='';
 }
+
+/* ── P&L INDICATOR DETAIL POPUP ── */
+function openPnlPopup(label){
+  const allMs = pnlMonths();
+  if(!allMs.length) return;
+  const histMs = allMs.slice(-12); /* last 12 available months, oldest to newest */
+
+  const channelEl = document.getElementById('pnl-channel');
+  const segmentEl = document.getElementById('pnl-segment');
+  const channel = channelEl ? channelEl.value : 'TOTAL';
+  const segment = segmentEl ? segmentEl.value : 'TOTAL';
+
+  document.getElementById('pnl-popup-title').textContent = label;
+  document.getElementById('pnl-popup-sub').innerHTML = `${channel} / ${segment} — ${currentLang==='en'?'last 12 months':'ultimi 12 mesi'}`;
+
+  const isPlainNum = label==='FTD' || label==='UPC';
+  const isAlreadyPct = label==='Margin';
+
+  const rowsHtml = histMs.slice().reverse().map(function(m){
+    const actuals = pnlVal(m, channel, segment, 'actuals', label);
+    const fcst     = pnlVal(m, channel, segment, 'fcst', label);
+    const achieved = pnlVal(m, channel, segment, 'achieved', label);
+    const fmtMain = function(v){
+      if(v===null) return '<span style="color:var(--text3)">—</span>';
+      if(isAlreadyPct) return fp(v*100);
+      if(isPlainNum) return fn(v);
+      return fe(v);
+    };
+    const fmtAchieved = achieved===null ? '<span style="color:var(--text3)">—</span>' : fp(achieved*100);
+    return `<tr>
+      <td style="font-size:12px;color:var(--text2)">${ml(m)}</td>
+      <td class="td-num">${fmtMain(actuals)}</td>
+      <td class="td-num">${fmtMain(fcst)}</td>
+      <td class="td-num">${fmtAchieved}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('pnl-popup-body').innerHTML = `
+    <div style="overflow-x:auto"><table><thead><tr>
+      <th>${currentLang==='en'?'Month':'Mese'}</th>
+      <th class="th-num">${t('actuals')}</th>
+      <th class="th-num">${t('forecastLbl')}</th>
+      <th class="th-num">${t('achievedPct')}</th>
+    </tr></thead><tbody>${rowsHtml}</tbody></table></div>
+    <div style="position:relative;height:200px;margin-top:20px"><canvas id="pnl-popup-chart"></canvas></div>
+  `;
+
+  document.getElementById('pnl-popup-overlay').style.display='block';
+  document.getElementById('pnl-popup').style.display='block';
+  document.body.style.overflow='hidden';
+
+  const chartLabels = histMs.map(ml);
+  const chartActuals = histMs.map(function(m){ return pnlVal(m, channel, segment, 'actuals', label); });
+  const chartFcst     = histMs.map(function(m){ return pnlVal(m, channel, segment, 'fcst', label); });
+
+  if(window.cPnlPopup) window.cPnlPopup.destroy();
+  const ctx = document.getElementById('pnl-popup-chart');
+  if(ctx){
+    window.cPnlPopup = new Chart(ctx,{
+      type:'line',
+      data:{labels:chartLabels,datasets:[
+        {label:t('actuals'),data:chartActuals,borderColor:'#e8001c',backgroundColor:'rgba(232,0,28,.08)',fill:true,tension:.3,pointRadius:3,spanGaps:true},
+        {label:t('forecastLbl'),data:chartFcst,borderColor:'#7dd3fc',borderDash:[5,4],fill:false,tension:.3,pointRadius:2,spanGaps:true}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#94a3b8',font:{size:11}}}},
+        scales:{y:{ticks:{color:'#64748b',callback:v=>isAlreadyPct?(v*100).toFixed(0)+'%':(isPlainNum?fn(v):'€'+fn(v))},grid:{color:'rgba(128,128,128,0.1)'}},
+                x:{ticks:{color:'#94a3b8',font:{size:11}},grid:{display:false}}}}
+    });
+  }
+}
+
+function closePnlPopup(){
+  document.getElementById('pnl-popup-overlay').style.display='none';
+  document.getElementById('pnl-popup').style.display='none';
+  document.body.style.overflow='';
+}
+
 /* ════════════════════════════════════════════════════
    ACCOUNT MANAGEMENT — admin detection, user creation,
    password change, network/tab permission gating
@@ -2949,7 +3039,7 @@ function renderPnl(){
 
   /* ── Trend charts: EBITDA and NGR 2nd Level across filtMs (actuals only, for trend clarity) ── */
   const ebitdaTrend = filtMs.map(function(m){ return pnlVal(m, channel, segment, 'actuals', 'EBITDA'); });
-  const ngrTrend     = filtMs.map(function(m){ return pnlVal(m, channel, segment, 'actuals', 'NGR 2nd Level'); });
+  const ggrTrend     = filtMs.map(function(m){ return pnlVal(m, channel, segment, 'actuals', 'GGR/Rake'); });
 
   if(window.cPnlEbitda) window.cPnlEbitda.destroy();
   const ebitdaCtx = document.getElementById('chart-pnl-ebitda');
@@ -2967,7 +3057,7 @@ function renderPnl(){
   if(ngrCtx){
     window.cPnlNgr = new Chart(ngrCtx,{
       type:'line',
-      data:{labels:filtMs.map(ml),datasets:[{label:'NGR 2nd Level',data:ngrTrend,borderColor:'#7dd3fc',backgroundColor:'rgba(125,211,252,.08)',fill:true,tension:.3,pointRadius:3,spanGaps:true}]},
+      data:{labels:filtMs.map(ml),datasets:[{label:'GGR/Rake',data:ggrTrend,borderColor:'#7dd3fc',backgroundColor:'rgba(125,211,252,.08)',fill:true,tension:.3,pointRadius:3,spanGaps:true}]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
         scales:{y:{ticks:{color:'#64748b',callback:v=>'€'+fn(v)},grid:{color:'rgba(128,128,128,0.1)'}},
                 x:{ticks:{color:'#94a3b8',font:{size:11}},grid:{display:false}}}}
@@ -2981,12 +3071,13 @@ function renderPnl(){
   const isPct = metric==='achieved';
   const isSingleMonth = displayMs.length===1;
   const cellPad = isSingleMonth ? '6px 10px' : '';
-  function cellsFor(label, forcePct){
+  function cellsFor(label, forcePct, forcePlain){
     return displayMs.map(function(m){
       const v = pnlVal(m, channel, segment, metric, label);
       const usePct = forcePct || isPct;
       const style = cellPad ? ` style="padding:${cellPad}"` : '';
-      return `<td class="td-num"${style}>${v===null?'<span style="color:var(--text3)">—</span>':(usePct?fp(v*100):fe(v))}</td>`;
+      const formatted = usePct ? fp(v*100) : (forcePlain ? fn(v) : fe(v));
+      return `<td class="td-num"${style}>${v===null?'<span style="color:var(--text3)">—</span>':formatted}</td>`;
     }).join('');
   }
   /* same as cellsFor but adds a small, muted "X% of GGR" sub-line under the main value —
@@ -3013,25 +3104,27 @@ function renderPnl(){
       const isBold = ['EBITDA','EBIT','TOTAL COSTS','Gross Profit after Marketing','P&L'].includes(item.label);
       const isMarginRow = item.label==='Margin';
       const isCostRow = item.label==='BONUS COST';
-      const cellsHtml = isCostRow ? cellsForWithIncidence(item.label, isMarginRow) : cellsFor(item.label, isMarginRow);
-      return `<tr${isBold?' style="font-weight:700;background:rgba(232,0,28,.04)"':''}><td style="position:sticky;left:0;background:${isBold?'rgba(232,0,28,.04)':'var(--card-bg)'};font-size:12px;${labelPad}">${item.label}</td>${cellsHtml}</tr>`;
+      const isPlainNumRow = item.label==='FTD' || item.label==='UPC';
+      const cellsHtml = isCostRow ? cellsForWithIncidence(item.label, isMarginRow) : cellsFor(item.label, isMarginRow, isPlainNumRow);
+      return `<tr class="clickable-row" onclick="openPnlPopup('${item.label}')" style="cursor:pointer;${isBold?'font-weight:700;background:rgba(232,0,28,.04)':''}"><td style="position:sticky;left:0;background:${isBold?'rgba(232,0,28,.04)':'var(--card-bg)'};font-size:12px;${labelPad}">${item.label}</td>${cellsHtml}</tr>`;
     }
-    /* group: summary row (always visible, clickable) + detail rows (hidden unless expanded).
-       summaryLabel may be null for groups with no own computed total in the sheet (e.g. Transactions) —
-       in that case the summary row shows only the group label, no values. */
+    /* group: summary row (always visible, toggles expand/collapse on click) + detail rows (hidden unless
+       expanded, clickable individually to open the popup). The summary row's own popup is opened via a
+       small inline icon, kept separate from the row click so toggling the group still works as expected. */
     const isOpen = pnlExpandedGroups.has(item.label);
     const arrow = isOpen ? '▾' : '▸';
     const costGroups = ['Direct Costs','Marketing','Fixed Costs'];
     const summaryCells = item.summaryLabel
       ? (costGroups.includes(item.label) ? cellsForWithIncidence(item.summaryLabel) : cellsFor(item.summaryLabel))
       : displayMs.map(function(){ return `<td class="td-num"${cellPad?` style="padding:${cellPad}"`:''}></td>`; }).join('');
+    const popupIcon = item.summaryLabel ? `<span onclick="event.stopPropagation();openPnlPopup('${item.summaryLabel}')" title="${currentLang==='en'?'View 12-month detail':'Vedi dettaglio 12 mesi'}" style="margin-left:8px;color:var(--text3);cursor:pointer;font-size:11px">📊</span>` : '';
     const summaryRow = `<tr class="clickable-row" onclick="togglePnlGroup('${item.label}')" style="cursor:pointer;font-weight:700;background:rgba(125,211,252,.06)">
       <td style="position:sticky;left:0;background:rgba(125,211,252,.06);font-size:12px;${labelPad}">
-        <span style="display:inline-block;width:14px;color:var(--sky)">${arrow}</span>${item.summaryLabel||item.label}
+        <span style="display:inline-block;width:14px;color:var(--sky)">${arrow}</span>${item.summaryLabel||item.label}${popupIcon}
       </td>${summaryCells}</tr>`;
     const detailRows = isOpen ? item.children.map(function(childLabel){
       const isMarginChild = childLabel==='Margin';
-      return `<tr><td style="position:sticky;left:0;background:var(--card-bg);font-size:12px;padding-left:30px;${isSingleMonth?'padding-top:6px;padding-bottom:6px;':''}color:var(--text2)">${childLabel}</td>${cellsFor(childLabel, isMarginChild)}</tr>`;
+      return `<tr class="clickable-row" onclick="openPnlPopup('${childLabel}')" style="cursor:pointer"><td style="position:sticky;left:0;background:var(--card-bg);font-size:12px;padding-left:30px;${isSingleMonth?'padding-top:6px;padding-bottom:6px;':''}color:var(--text2)">${childLabel}</td>${cellsFor(childLabel, isMarginChild)}</tr>`;
     }).join('') : '';
     return summaryRow + detailRows;
   }).join('');
