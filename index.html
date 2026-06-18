@@ -2421,19 +2421,30 @@ function openPnlPopup(label){
   const rowsHtml = histMs.slice().reverse().map(function(m){
     const actuals = pnlVal(m, channel, segment, 'actuals', label);
     const fcst     = pnlVal(m, channel, segment, 'fcst', label);
-    const achieved = pnlVal(m, channel, segment, 'achieved', label);
     const fmtMain = function(v){
       if(v===null) return '<span style="color:var(--text3)">—</span>';
       if(isAlreadyPct) return fp(v*100);
       if(isPlainNum) return fn(v);
       return fe(v);
     };
-    const fmtAchieved = achieved===null ? '<span style="color:var(--text3)">—</span>' : fp(achieved*100);
+    let diffHtml = '<span style="color:var(--text3)">—</span>';
+    let varHtml  = '<span style="color:var(--text3)">—</span>';
+    if(actuals!==null && fcst!==null){
+      const diff = actuals - fcst;
+      const diffColor = diff>0 ? '#22c55e' : (diff<0 ? '#f87171' : 'var(--text)');
+      const diffFmt = isAlreadyPct ? fp(diff*100) : (isPlainNum ? fn(diff) : fe(diff));
+      diffHtml = `<span style="color:${diffColor}">${diff>0?'+':''}${diffFmt}</span>`;
+      if(fcst!==0){
+        const varPct = (diff/Math.abs(fcst))*100;
+        varHtml = `<span style="color:${diffColor}">${varPct>0?'+':''}${varPct.toFixed(1)}%</span>`;
+      }
+    }
     return `<tr>
       <td style="font-size:12px;color:var(--text2)">${ml(m)}</td>
       <td class="td-num">${fmtMain(actuals)}</td>
       <td class="td-num">${fmtMain(fcst)}</td>
-      <td class="td-num">${fmtAchieved}</td>
+      <td class="td-num">${diffHtml}</td>
+      <td class="td-num">${varHtml}</td>
     </tr>`;
   }).join('');
 
@@ -2442,7 +2453,8 @@ function openPnlPopup(label){
       <th>${currentLang==='en'?'Month':'Mese'}</th>
       <th class="th-num">${t('actuals')}</th>
       <th class="th-num">${t('forecastLbl')}</th>
-      <th class="th-num">${t('achievedPct')}</th>
+      <th class="th-num">${currentLang==='en'?'Difference':'Differenza'}</th>
+      <th class="th-num">${currentLang==='en'?'Variation %':'Variazione %'}</th>
     </tr></thead><tbody>${rowsHtml}</tbody></table></div>
     <div style="position:relative;height:200px;margin-top:20px"><canvas id="pnl-popup-chart"></canvas></div>
   `;
