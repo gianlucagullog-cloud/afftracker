@@ -2634,15 +2634,12 @@ let pnlPendingMonths = [];
 const PNL_ROWS = [
   {type:'row', label:'FTD'},
   {type:'row', label:'UPC'},
-  {type:'row', label:'New POS Activated'},
-  {type:'row', label:'Active POS'},
   {type:'row', label:'Turnover'},
   {type:'row', label:'Margin'},
   {type:'row', label:'GGR/Rake'},
-  {type:'row', label:'Deposits'},
-  {type:'row', label:'Withdraw'},
-  {type:'row', label:'Deposit + Withdraw'},
-  {type:'row', label:'Cash Flow (Deposit - Withdraw)'},
+  {type:'group', label:'Transactions', summaryLabel:null, children:[
+    'Deposits','Withdraw','Deposit + Withdraw','Cash Flow (Deposit - Withdraw)'
+  ]},
   {type:'row', label:'BONUS COST'},
   {type:'row', label:'Gaming Taxes'},
   {type:'row', label:'NGR 1st Level'},
@@ -2677,7 +2674,7 @@ const PNL_ROWS = [
 /* Flat list of every indicator label, derived from PNL_ROWS, kept for the
    parser (which still reads every row by its original sheet label). */
 const PNL_INDICATORS = PNL_ROWS.flatMap(function(r){
-  return r.type==='group' ? [r.summaryLabel].concat(r.children) : [r.label];
+  return r.type==='group' ? (r.summaryLabel ? [r.summaryLabel] : []).concat(r.children) : [r.label];
 });
 
 /* Tracks which groups are currently expanded in the P&L table (persists for the session) */
@@ -2978,29 +2975,41 @@ function renderPnl(){
   }
 
   /* ── Full indicator table: grouped rows with expand/collapse, columns = months ── */
-  const monthCols = filtMs.map(function(m){ return `<th class="th-num">${ml(m)}</th>`; }).join('');
+  /* Most-recent month first (left to right), matching how the person wants to read recent performance first */
+  const displayMs = filtMs.slice().reverse();
+  const monthCols = displayMs.map(function(m){ return `<th class="th-num">${ml(m)}</th>`; }).join('');
   const isPct = metric==='achieved';
-  function cellsFor(label){
-    return filtMs.map(function(m){
+  const isSingleMonth = displayMs.length===1;
+  const cellPad = isSingleMonth ? '6px 10px' : '';
+  function cellsFor(label, forcePct){
+    return displayMs.map(function(m){
       const v = pnlVal(m, channel, segment, metric, label);
-      return `<td class="td-num">${v===null?'<span style="color:var(--text3)">—</span>':(isPct?fp(v*100):fe(v))}</td>`;
+      const usePct = forcePct || isPct;
+      const style = cellPad ? ` style="padding:${cellPad}"` : '';
+      return `<td class="td-num"${style}>${v===null?'<span style="color:var(--text3)">—</span>':(usePct?fp(v*100):fe(v))}</td>`;
     }).join('');
   }
 
   const bodyRows = PNL_ROWS.map(function(item){
+    const labelPad = isSingleMonth ? 'padding:6px 10px;' : '';
     if(item.type==='row'){
       const isBold = ['EBITDA','EBIT','TOTAL COSTS','Gross Profit after Marketing','P&L'].includes(item.label);
-      return `<tr${isBold?' style="font-weight:700;background:rgba(232,0,28,.04)"':''}><td style="position:sticky;left:0;background:${isBold?'rgba(232,0,28,.04)':'var(--card-bg)'};font-size:12px">${item.label}</td>${cellsFor(item.label)}</tr>`;
+      const isMarginRow = item.label==='Margin';
+      return `<tr${isBold?' style="font-weight:700;background:rgba(232,0,28,.04)"':''}><td style="position:sticky;left:0;background:${isBold?'rgba(232,0,28,.04)':'var(--card-bg)'};font-size:12px;${labelPad}">${item.label}</td>${cellsFor(item.label, isMarginRow)}</tr>`;
     }
-    /* group: summary row (always visible, clickable) + detail rows (hidden unless expanded) */
+    /* group: summary row (always visible, clickable) + detail rows (hidden unless expanded).
+       summaryLabel may be null for groups with no own computed total in the sheet (e.g. Transactions) —
+       in that case the summary row shows only the group label, no values. */
     const isOpen = pnlExpandedGroups.has(item.label);
     const arrow = isOpen ? '▾' : '▸';
+    const summaryCells = item.summaryLabel ? cellsFor(item.summaryLabel) : displayMs.map(function(){ return `<td class="td-num"${cellPad?` style="padding:${cellPad}"`:''}></td>`; }).join('');
     const summaryRow = `<tr class="clickable-row" onclick="togglePnlGroup('${item.label}')" style="cursor:pointer;font-weight:700;background:rgba(125,211,252,.06)">
-      <td style="position:sticky;left:0;background:rgba(125,211,252,.06);font-size:12px">
-        <span style="display:inline-block;width:14px;color:var(--sky)">${arrow}</span>${item.summaryLabel}
-      </td>${cellsFor(item.summaryLabel)}</tr>`;
+      <td style="position:sticky;left:0;background:rgba(125,211,252,.06);font-size:12px;${labelPad}">
+        <span style="display:inline-block;width:14px;color:var(--sky)">${arrow}</span>${item.summaryLabel||item.label}
+      </td>${summaryCells}</tr>`;
     const detailRows = isOpen ? item.children.map(function(childLabel){
-      return `<tr><td style="position:sticky;left:0;background:var(--card-bg);font-size:12px;padding-left:30px;color:var(--text2)">${childLabel}</td>${cellsFor(childLabel)}</tr>`;
+      const isMarginChild = childLabel==='Margin';
+      return `<tr><td style="position:sticky;left:0;background:var(--card-bg);font-size:12px;padding-left:30px;${isSingleMonth?'padding-top:6px;padding-bottom:6px;':''}color:var(--text2)">${childLabel}</td>${cellsFor(childLabel, isMarginChild)}</tr>`;
     }).join('') : '';
     return summaryRow + detailRows;
   }).join('');
@@ -3010,7 +3019,7 @@ function renderPnl(){
     ${channel} / ${segment} — ${metric==='actuals'?t('actuals'):metric==='fcst'?t('forecastLbl'):t('achievedPct')}
   </div>
   <div style="overflow-x:auto">
-  <table><thead><tr><th style="position:sticky;left:0;background:var(--card-bg)">${currentLang==='en'?'Indicator':'Indicatore'}</th>${monthCols}</tr></thead><tbody>${bodyRows}</tbody></table>
+  <table style="${isSingleMonth?'width:auto':''}"><thead><tr><th style="position:sticky;left:0;background:var(--card-bg);${isSingleMonth?'min-width:280px':''}">${currentLang==='en'?'Indicator':'Indicatore'}</th>${monthCols}</tr></thead><tbody>${bodyRows}</tbody></table>
   </div>`;
 }
 
