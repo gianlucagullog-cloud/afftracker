@@ -382,6 +382,7 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
   <button class="tab" onclick="switchTab('trend',this)" data-i18n="tabPerformance">📈 Performance</button>
   <button class="tab" onclick="switchTab('operatori',this)" data-i18n="tabOperatori">🏆 Operatori</button>
   <button class="tab" onclick="switchTab('pnl',this)" data-i18n="tabPnl">💰 P&L</button>
+  <button class="tab" onclick="switchTab('investimenti',this)" data-i18n="tabInvestimenti">🏗️ Investimenti</button>
   <button class="tab" onclick="switchTab('upload',this)">⬆ Carica dati <span class="tab-count" id="months-badge">0</span></button>
 </div>
 
@@ -714,6 +715,63 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
     </div>
   </div>
 
+  <!-- INVESTIMENTI -->
+  <div id="tab-investimenti" class="panel">
+    <div class="table-wrap" style="margin-bottom:20px">
+      <div style="padding:16px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+        <div>
+          <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px" data-i18n="pianoInvestimenti">Piano Investimenti — Schema di Convenzione (Art. 8)</div>
+          <div style="font-size:11px;color:var(--text3)" data-i18n="pianoInvestimentiSub">Carica le fatture e assegnale alle voci del piano per monitorare l'avanzamento verso l'obiettivo</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <label class="field-label" data-i18n="annoConcessione" style="margin:0">Anno concessione</label>
+          <select class="tbl-select" id="inv-year-select" onchange="renderInvestimenti()">
+            <option value="1" data-i18n="anno1">Anno 1</option>
+            <option value="2" data-i18n="anno2">Anno 2</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-wrap" id="inv-upload-section" style="margin-bottom:20px">
+      <div style="padding:18px">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px" data-i18n="caricaFattura">Carica fattura</div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+          <div>
+            <label class="field-label" data-i18n="fileFattura">File fattura (PDF/immagine)</label>
+            <input type="file" id="inv-file-input" accept=".pdf,.png,.jpg,.jpeg" style="display:block;font-size:12px;color:var(--text2)">
+          </div>
+          <div>
+            <label class="field-label" data-i18n="importoEuro">Importo (€)</label>
+            <input type="number" step="0.01" min="0" class="tbl-search" id="inv-amount-input" placeholder="0.00" style="width:140px">
+          </div>
+          <div>
+            <label class="field-label" data-i18n="dataFattura">Data</label>
+            <input type="date" class="tbl-search" id="inv-date-input" style="width:150px">
+          </div>
+          <div style="flex:1;min-width:220px">
+            <label class="field-label" data-i18n="descrizione">Descrizione</label>
+            <input type="text" class="tbl-search" id="inv-desc-input" placeholder="es. Fornitore, oggetto della fattura..." style="width:100%">
+          </div>
+        </div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-top:14px">
+          <div>
+            <label class="field-label" data-i18n="macrosezione">Macrosezione</label>
+            <select class="tbl-select" id="inv-macro-select" onchange="populateInvSubSelect()" style="width:280px"></select>
+          </div>
+          <div>
+            <label class="field-label" data-i18n="sottovoce">Sottovoce (opzionale)</label>
+            <select class="tbl-select" id="inv-sub-select" style="width:320px"></select>
+          </div>
+          <button class="btn-confirm" onclick="addInvoice()" data-i18n="caricaEAssegna">✓ Carica e assegna</button>
+        </div>
+        <div id="inv-upload-msg" style="font-size:12px;margin-top:8px"></div>
+      </div>
+    </div>
+
+    <div id="inv-macro-cards"></div>
+  </div>
+
   <!-- UPLOAD -->
   <div id="tab-upload" class="panel">
     <div class="upload-zone" onclick="document.getElementById('file-input').click()">
@@ -910,6 +968,20 @@ const I18N = {
     tabOperatori: '🏆 Operatori',
     tabPnl: '💰 P&L',
     esportaPdf: '📄 Esporta PDF',
+    tabInvestimenti: '🏗️ Investimenti',
+    pianoInvestimenti: 'Piano Investimenti — Schema di Convenzione (Art. 8)',
+    pianoInvestimentiSub: "Carica le fatture e assegnale alle voci del piano per monitorare l'avanzamento verso l'obiettivo",
+    annoConcessione: 'Anno concessione',
+    anno1: 'Anno 1',
+    anno2: 'Anno 2',
+    caricaFattura: 'Carica fattura',
+    fileFattura: 'File fattura (PDF/immagine)',
+    importoEuro: 'Importo (€)',
+    dataFattura: 'Data',
+    descrizione: 'Descrizione',
+    macrosezione: 'Macrosezione',
+    sottovoce: 'Sottovoce (opzionale)',
+    caricaEAssegna: '✓ Carica e assegna',
     caricaPnl: 'Carica P&L vs Forecast',
     trasciaFilePnl: 'Trascina qui il file Excel con il foglio "PNL vs Forecast"',
     fileNonValidoPnl: 'File non valido. Verifica che contenga il foglio "PNL vs Forecast" nel formato corretto.',
@@ -1114,6 +1186,20 @@ const I18N = {
     tabOperatori: '🏆 Operators',
     tabPnl: '💰 P&L',
     esportaPdf: '📄 Export PDF',
+    tabInvestimenti: '🏗️ Investments',
+    pianoInvestimenti: 'Investment Plan — Schema di Convenzione (Art. 8)',
+    pianoInvestimentiSub: 'Upload invoices and assign them to plan items to track progress toward the target',
+    annoConcessione: 'Concession year',
+    anno1: 'Year 1',
+    anno2: 'Year 2',
+    caricaFattura: 'Upload invoice',
+    fileFattura: 'Invoice file (PDF/image)',
+    importoEuro: 'Amount (€)',
+    dataFattura: 'Date',
+    descrizione: 'Description',
+    macrosezione: 'Macro-section',
+    sottovoce: 'Sub-item (optional)',
+    caricaEAssegna: '✓ Upload and assign',
     caricaPnl: 'Upload P&L vs Forecast',
     trasciaFilePnl: 'Drop the Excel file containing the "PNL vs Forecast" sheet',
     fileNonValidoPnl: 'Invalid file. Check that it contains the "PNL vs Forecast" sheet in the correct format.',
@@ -2937,7 +3023,8 @@ function applyTabPermissions(){
     categorie: "switchTab('categorie'",
     trend:     "switchTab('trend'",
     operatori: "switchTab('operatori'",
-    pnl:       "switchTab('pnl'"
+    pnl:       "switchTab('pnl'",
+    investimenti: "switchTab('investimenti'"
   };
   document.querySelectorAll('.tabs .tab').forEach(function(btn){
     const onclick = btn.getAttribute('onclick')||'';
@@ -2957,6 +3044,8 @@ function applyTabPermissions(){
   if(opUpload) opUpload.style.display='none';
   const pnlUpload = document.getElementById('pnl-upload-section');
   if(pnlUpload) pnlUpload.style.display='none';
+  const invUpload = document.getElementById('inv-upload-section');
+  if(invUpload) invUpload.style.display='none';
   /* hide account button for non-admins (defensive, also controlled elsewhere) */
   const acctBtn = document.getElementById('btn-account');
   if(acctBtn) acctBtn.style.display='none';
@@ -3208,6 +3297,244 @@ function togglePnlGroup(groupLabel){
 function normPnlLabel(s){
   return (s||'').toString().replace(/\s+/g,' ').trim();
 }
+
+/* ════════════════════════════════════════════════════
+   INVESTMENT PLAN — Art. 8 Schema di Convenzione
+   3 macro-sections, each with a year-1/year-2 € target read from
+   Piano_investimento.docx. Sub-items have no target of their own —
+   they exist only to categorize invoices; any invoice assigned to a
+   sub-item still counts toward its parent macro-section's total. */
+const INVESTMENT_PLAN = [
+  {
+    id: 'adeguamenti_tecnologici',
+    label: 'a. Adeguamenti tecnologici',
+    target: { 1: 369500, 2: 399000 },
+    subItems: [
+      "Sviluppo o miglioramento delle applicazioni di frontend, ottimizzazione UX e performance dei sistemi",
+      "Implementazione di nuove funzionalità e personalizzazioni richieste dal Concessionario",
+      "Adozione di algoritmi (es. intelligenza artificiale) e machine learning per analisi del gioco, personalizzazione e rilevamento frodi",
+      "Aggiornamento di server, storage e reti per scalabilità, affidabilità e prestazioni",
+      "Miglioramento dell'infrastruttura per la sicurezza perimetrale del sistema",
+      "Modernizzazione dei server e delle infrastrutture tecnologiche",
+      "Sistema di profilazione dei giocatori per il miglioramento della user experience",
+      "Cloudflare per prevenzione attacchi DDOS e stabilità dei sistemi",
+      "Implementazione Optimove (CRM)"
+    ]
+  },
+  {
+    id: 'sicurezza_gioco',
+    label: 'b. Sicurezza del gioco',
+    target: { 1: 323000, 2: 326000 },
+    subItems: [
+      "Miglioramento dei protocolli di accesso e irrobustimento dei sistemi informatici",
+      "Personale specializzato dedicato al monitoraggio dei sistemi di sicurezza",
+      "Vulnerability scan, penetration test e regular system patching",
+      "Formazione del personale a livello CISSP e PCI DSS security assessor",
+      "Sistema di analisi dei giocatori per la lotta alla criminalità organizzata",
+      "Sistema di sicurezza addizionale per i pagamenti con carte secondo standard PCI DSS"
+    ]
+  },
+  {
+    id: 'gioco_responsabile',
+    label: 'c. Contrasto al gioco patologico e gioco responsabile',
+    target: { 1: 153500, 2: 155000 },
+    subItems: [
+      "Sistema e team di monitoraggio delle anomalie comportamentali degli utenti",
+      "Sistemi di messaggistica e funzioni per promuovere il gioco responsabile",
+      "Formazione professionale continua sul responsible gambling",
+      "Responsible Gambling Officer dedicato alla vigilanza sugli standard",
+      "Collaborazione con enti dedicati alla lotta alla ludopatia"
+    ]
+  }
+];
+
+let invInvoices = []; /* {id, macroId, subIndex(or null), amount, description, date, fileName, fileType, fileDataUrl, uploadedAt} */
+
+function loadInvDB(){
+  try{
+    const raw = localStorage.getItem('mbt_inv_db');
+    if(raw) invInvoices = JSON.parse(raw);
+  }catch(e){}
+}
+function saveInvDB(){
+  try{ localStorage.setItem('mbt_inv_db', JSON.stringify(invInvoices)); }catch(e){}
+  syncInvToFirestore();
+}
+async function syncInvToFirestore(){
+  if(!fbDb||!currentUser) return;
+  try{
+    const docId = currentUser.uid + '_investimenti';
+    await fbDb.collection('investimentiData').doc(docId).set({
+      userId: currentUser.uid, data: invInvoices, updatedAt: new Date().toISOString()
+    });
+  }catch(e){ console.error('[Investimenti] Firestore save error:', e); }
+}
+async function loadInvFromFirestore(){
+  if(!fbDb||!currentUser) return;
+  try{
+    const readUid = (!isAdminUser && userPerms && userPerms.ownerUid) ? userPerms.ownerUid : currentUser.uid;
+    const docId = readUid + '_investimenti';
+    const doc = await fbDb.collection('investimentiData').doc(docId).get();
+    if(doc.exists){
+      const d=doc.data();
+      if(d.data){ invInvoices=d.data; renderInvestimenti(); }
+    }
+  }catch(e){ console.error('[Investimenti] Firestore load error:', e); }
+}
+
+function populateInvMacroSelect(){
+  const sel=document.getElementById('inv-macro-select');
+  if(!sel) return;
+  sel.innerHTML = INVESTMENT_PLAN.map(function(m){ return `<option value="${m.id}">${m.label}</option>`; }).join('');
+  populateInvSubSelect();
+}
+function populateInvSubSelect(){
+  const macroSel=document.getElementById('inv-macro-select');
+  const subSel=document.getElementById('inv-sub-select');
+  if(!macroSel||!subSel) return;
+  const macro=INVESTMENT_PLAN.find(function(m){ return m.id===macroSel.value; });
+  const noneLabel = currentLang==='en' ? '— None (assign to macro-section only) —' : '— Nessuna (assegna solo alla macrosezione) —';
+  subSel.innerHTML = `<option value="">${noneLabel}</option>` + (macro ? macro.subItems.map(function(s,i){ return `<option value="${i}">${s}</option>`; }).join('') : '');
+}
+
+function fileToBase64(file){
+  return new Promise(function(resolve, reject){
+    const reader = new FileReader();
+    reader.onload = function(){ resolve(reader.result); };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function addInvoice(){
+  if(!isAdminUser){ showToast(currentLang==='en'?'Only the administrator can upload invoices.':'Solo l\'amministratore può caricare fatture.', 'error'); return; }
+  const fileInput = document.getElementById('inv-file-input');
+  const amountInput = document.getElementById('inv-amount-input');
+  const dateInput = document.getElementById('inv-date-input');
+  const descInput = document.getElementById('inv-desc-input');
+  const macroSel = document.getElementById('inv-macro-select');
+  const subSel = document.getElementById('inv-sub-select');
+  const msgEl = document.getElementById('inv-upload-msg');
+
+  const file = fileInput.files[0];
+  const amount = parseFloat(amountInput.value);
+  if(!file){ msgEl.innerHTML = `<span style="color:#f87171">${currentLang==='en'?'Please select a file.':'Seleziona un file.'}</span>`; return; }
+  if(isNaN(amount) || amount<=0){ msgEl.innerHTML = `<span style="color:#f87171">${currentLang==='en'?'Please enter a valid amount.':'Inserisci un importo valido.'}</span>`; return; }
+  /* Firestore document limit is ~1MB total; since invoices are stored as base64 inline
+     in the same array document, keep individual files comfortably under that to leave
+     room for all other invoices already saved */
+  if(file.size > 700*1024){
+    msgEl.innerHTML = `<span style="color:#f87171">${currentLang==='en'?'File too large (max 700KB). Please compress it first.':'File troppo grande (max 700KB). Comprimilo prima di caricarlo.'}</span>`;
+    return;
+  }
+
+  msgEl.innerHTML = `<span style="color:var(--text3)">${currentLang==='en'?'Uploading…':'Caricamento…'}</span>`;
+  try{
+    const fileDataUrl = await fileToBase64(file);
+    invInvoices.push({
+      id: 'inv_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
+      macroId: macroSel.value,
+      subIndex: subSel.value===''?null:parseInt(subSel.value,10),
+      amount: amount,
+      description: descInput.value||'',
+      date: dateInput.value||'',
+      fileName: file.name,
+      fileType: file.type,
+      fileDataUrl: fileDataUrl,
+      uploadedAt: new Date().toISOString()
+    });
+    saveInvDB();
+    fileInput.value=''; amountInput.value=''; dateInput.value=''; descInput.value='';
+    msgEl.innerHTML = `<span style="color:#22c55e">${currentLang==='en'?'Invoice uploaded and assigned.':'Fattura caricata e assegnata.'}</span>`;
+    renderInvestimenti();
+  }catch(e){
+    console.error('[Investimenti] upload error:', e);
+    msgEl.innerHTML = `<span style="color:#f87171">${currentLang==='en'?'Upload failed.':'Caricamento non riuscito.'}</span>`;
+  }
+}
+
+function deleteInvoice(invId){
+  if(!isAdminUser){ showToast(currentLang==='en'?'Only the administrator can remove invoices.':'Solo l\'amministratore può rimuovere fatture.', 'error'); return; }
+  invInvoices = invInvoices.filter(function(inv){ return inv.id!==invId; });
+  saveInvDB();
+  renderInvestimenti();
+}
+
+function viewInvoiceFile(invId){
+  const inv = invInvoices.find(function(i){ return i.id===invId; });
+  if(!inv || !inv.fileDataUrl) return;
+  const w = window.open('');
+  if(inv.fileType && inv.fileType.startsWith('image/')){
+    w.document.write(`<img src="${inv.fileDataUrl}" style="max-width:100%">`);
+  } else {
+    w.document.write(`<iframe src="${inv.fileDataUrl}" style="border:0;width:100%;height:100vh"></iframe>`);
+  }
+}
+
+function renderInvestimenti(){
+  const yearSel = document.getElementById('inv-year-select');
+  if(!yearSel) return;
+  if(!yearSel.options.length) return; /* not yet populated this render pass */
+  const year = parseInt(yearSel.value||'1', 10);
+
+  const cardsHtml = INVESTMENT_PLAN.map(function(macro){
+    const target = macro.target[year];
+    const macroInvoices = invInvoices.filter(function(inv){ return inv.macroId===macro.id; });
+    const totalRaised = macroInvoices.reduce(function(s,inv){ return s+inv.amount; }, 0);
+    const pct = target ? Math.min(100, (totalRaised/target)*100) : 0;
+    const barColor = pct>=100 ? '#22c55e' : (pct>=60 ? '#7dd3fc' : '#f59e0b');
+
+    const subBreakdown = macro.subItems.map(function(sub,i){
+      const subInvoices = macroInvoices.filter(function(inv){ return inv.subIndex===i; });
+      const subTotal = subInvoices.reduce(function(s,inv){ return s+inv.amount; }, 0);
+      if(!subInvoices.length) return '';
+      return `<div style="padding:8px 0;border-top:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">${sub}</div>
+        <div style="font-size:11px;color:var(--text3)">${fe(subTotal)} — ${subInvoices.length} ${currentLang==='en'?(subInvoices.length===1?'invoice':'invoices'):(subInvoices.length===1?'fattura':'fatture')}</div>
+      </div>`;
+    }).join('');
+
+    const unassignedInvoices = macroInvoices.filter(function(inv){ return inv.subIndex===null; });
+
+    const invoiceRows = macroInvoices.slice().sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); }).map(function(inv){
+      const subLabel = inv.subIndex!==null ? macro.subItems[inv.subIndex] : (currentLang==='en'?'(macro-section only)':'(solo macrosezione)');
+      return `<tr>
+        <td style="font-size:12px">${inv.date||'—'}</td>
+        <td style="font-size:12px;color:var(--text2);max-width:220px;overflow:hidden;text-overflow:ellipsis">${inv.description||'—'}</td>
+        <td style="font-size:11px;color:var(--text3);max-width:200px;overflow:hidden;text-overflow:ellipsis">${subLabel}</td>
+        <td class="td-num" style="font-weight:600">${fe(inv.amount)}</td>
+        <td><span class="aff-code" style="color:var(--sky);cursor:pointer" onclick="viewInvoiceFile('${inv.id}')">📎 ${inv.fileName}</span></td>
+        <td>${isAdminUser?`<button class="btn-cancel" style="padding:4px 10px;font-size:11px" onclick="deleteInvoice('${inv.id}')">✕</button>`:''}</td>
+      </tr>`;
+    }).join('');
+
+    return `
+    <div class="table-wrap" style="margin-bottom:20px">
+      <div style="padding:18px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+          <div style="font-size:14px;font-weight:700;color:var(--text)">${macro.label}</div>
+          <div style="font-size:13px;color:var(--text2)">${fe(totalRaised)} / ${fe(target)} <span style="color:${barColor};font-weight:700">(${pct.toFixed(1)}%)</span></div>
+        </div>
+        <div style="background:var(--border);border-radius:8px;height:14px;overflow:hidden;margin-bottom:14px">
+          <div style="background:${barColor};height:100%;width:${pct}%;transition:width .3s"></div>
+        </div>
+        ${macroInvoices.length ? `<div style="overflow-x:auto"><table><thead><tr>
+          <th style="font-size:10px">${currentLang==='en'?'Date':'Data'}</th>
+          <th style="font-size:10px">${currentLang==='en'?'Description':'Descrizione'}</th>
+          <th style="font-size:10px">${currentLang==='en'?'Sub-item':'Sottovoce'}</th>
+          <th class="th-num" style="font-size:10px">${currentLang==='en'?'Amount':'Importo'}</th>
+          <th style="font-size:10px">${currentLang==='en'?'File':'File'}</th>
+          <th style="font-size:10px"></th>
+        </tr></thead><tbody>${invoiceRows}</tbody></table></div>`
+        : `<div style="font-size:12px;color:var(--text3);padding:10px 0">${currentLang==='en'?'No invoices assigned yet.':'Nessuna fattura assegnata.'}</div>`}
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('inv-macro-cards').innerHTML = cardsHtml;
+}
+
+
 
 function parsePnlMonthHeader(val){
   /* row 1 cells render as "MM/yyyy" strings (SheetJS honors the cell's own
@@ -4751,14 +5078,18 @@ function appInit(){
   loadDB();
   loadOpDB();
   loadPnlDB();
+  loadInvDB();
   updateBadge();
   initTheme();
   renderOverview();
   renderMonthsList();
+  populateInvMacroSelect();
+  renderInvestimenti();
   /* fetch fresh data from Firestore cloud (async, updates UI when done) */
   loadFromFirestore();
   loadOpFromFirestore();
   loadPnlFromFirestore();
+  loadInvFromFirestore();
 }
 
 /* ════════════════════════════════════════════════════
