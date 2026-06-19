@@ -2292,12 +2292,14 @@ function renderOperatori(){
     return;
   }
 
-  /* ── MULTI MONTH TABLE: per-month columns (Giocato / GGR / Mkt% / Rank) ── */
-  const monthCols=filtMs.map(function(m){
-    return `<th class="th-num" style="border-left:1px solid var(--border)" colspan="4">${ml(m)}</th>`;
+  /* ── MULTI MONTH TABLE: per-month columns (Giocato / GGR / Mkt% / Rank / Δ Rank) ── */
+  /* Most-recent month first (left to right), specific to this Operatori table */
+  const displayMs = filtMs.slice().reverse();
+  const monthCols=displayMs.map(function(m){
+    return `<th class="th-num" style="border-left:1px solid var(--border)" colspan="5">${ml(m)}</th>`;
   }).join('');
-  const monthSubCols=filtMs.map(function(){
-    return `<th class="th-num" style="border-left:1px solid var(--border);font-size:10px">${currentLang==='en'?'Turnover':'Giocato'}</th><th class="th-num" style="font-size:10px">GGR</th><th class="th-num" style="font-size:10px">Mkt%</th><th class="th-num" style="font-size:10px">#</th>`;
+  const monthSubCols=displayMs.map(function(){
+    return `<th class="th-num" style="border-left:1px solid var(--border);font-size:10px">${currentLang==='en'?'Turnover':'Giocato'}</th><th class="th-num" style="font-size:10px">GGR</th><th class="th-num" style="font-size:10px">Mkt%</th><th class="th-num" style="font-size:10px">#</th><th class="th-num" style="font-size:10px">Δ#</th>`;
   }).join('');
 
   document.getElementById('tbl-operatori').innerHTML = `
@@ -2315,11 +2317,23 @@ function renderOperatori(){
     <tr>${monthSubCols}</tr>
   </thead><tbody>${opList.map(function(o,i){
     const isMbt=o.brand.toLowerCase().includes('marathonbet');
-    const monthCells=filtMs.map(function(m){
+    const monthCells=displayMs.map(function(m){
       const r=o.byMonth[m];
-      if(!r) return `<td class="td-num" style="border-left:1px solid var(--border);color:var(--text3)">—</td><td class="td-num" style="color:var(--text3)">—</td><td class="td-num" style="color:var(--text3)">—</td><td class="td-num" style="color:var(--text3)">—</td>`;
+      if(!r) return `<td class="td-num" style="border-left:1px solid var(--border);color:var(--text3)">—</td><td class="td-num" style="color:var(--text3)">—</td><td class="td-num" style="color:var(--text3)">—</td><td class="td-num" style="color:var(--text3)">—</td><td class="td-num" style="color:var(--text3)">—</td>`;
       const rank=rankByMonth[m][o.brand];
-      return `<td class="td-num" style="border-left:1px solid var(--border)">${fe(turnoverFor(r))}</td><td class="td-num">${fe(ggrFor(r))}</td><td class="td-num">${fp(mktFor(r)*100)}</td><td class="td-num" style="color:#7dd3fc;font-weight:600">#${rank||'—'}</td>`;
+      /* compare against the chronologically previous month (one step back in filtMs,
+         not whatever sits visually to the right now that columns are reversed) */
+      const mIdx=filtMs.indexOf(m);
+      const prevM=mIdx>0?filtMs[mIdx-1]:null;
+      const prevRank=prevM?rankByMonth[prevM][o.brand]:null;
+      let deltaRankHtml='<span style="color:var(--text3)">—</span>';
+      if(rank && prevRank){
+        const diff=prevRank-rank; /* positive = moved up (gained positions) */
+        if(diff>0) deltaRankHtml=`<span style="color:#22c55e;font-weight:600">▲${diff}</span>`;
+        else if(diff<0) deltaRankHtml=`<span style="color:#f87171;font-weight:600">▼${Math.abs(diff)}</span>`;
+        else deltaRankHtml=`<span style="color:var(--text3)">＝</span>`;
+      }
+      return `<td class="td-num" style="border-left:1px solid var(--border)">${fe(turnoverFor(r))}</td><td class="td-num">${fe(ggrFor(r))}</td><td class="td-num">${fp(mktFor(r)*100)}</td><td class="td-num" style="color:#7dd3fc;font-weight:600">#${rank||'—'}</td><td class="td-num">${deltaRankHtml}</td>`;
     }).join('');
     const deltaHTML = o.deltaPct===null
       ? '<span style="color:var(--text3);font-size:12px">—</span>'
