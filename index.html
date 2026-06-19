@@ -9,6 +9,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -683,20 +685,26 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
         </div>
       </div>
 
-      <div id="kpi-pnl" class="kpi-grid"></div>
-
-      <div class="charts-grid">
-        <div class="chart-card">
-          <div class="chart-card-title" data-i18n="trendEbitda">Trend EBITDA</div>
-          <div style="position:relative;height:240px"><canvas id="chart-pnl-ebitda" role="img" aria-label="Trend EBITDA"></canvas></div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-card-title" data-i18n="trendGgr">Trend GGR/Rake</div>
-          <div style="position:relative;height:240px"><canvas id="chart-pnl-ngr" role="img" aria-label="Trend GGR"></canvas></div>
-        </div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+        <button class="header-btn" id="btn-export-pnl-pdf" onclick="exportPnlPDF()" data-i18n="esportaPdf">📄 Esporta PDF</button>
       </div>
 
+      <div id="pnl-export-area">
+        <div id="kpi-pnl" class="kpi-grid"></div>
+
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-card-title" data-i18n="trendEbitda">Trend EBITDA</div>
+            <div style="position:relative;height:240px"><canvas id="chart-pnl-ebitda" role="img" aria-label="Trend EBITDA"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-card-title" data-i18n="trendGgr">Trend GGR/Rake</div>
+            <div style="position:relative;height:240px"><canvas id="chart-pnl-ngr" role="img" aria-label="Trend GGR"></canvas></div>
+          </div>
+        </div>
+
       <div class="table-wrap"><div id="tbl-pnl"></div></div>
+      </div>
     </div>
   </div>
 
@@ -895,6 +903,7 @@ const I18N = {
     tabPerformance: '📈 Performance',
     tabOperatori: '🏆 Operatori',
     tabPnl: '💰 P&L',
+    esportaPdf: '📄 Esporta PDF',
     caricaPnl: 'Carica P&L vs Forecast',
     trasciaFilePnl: 'Trascina qui il file Excel con il foglio "PNL vs Forecast"',
     fileNonValidoPnl: 'File non valido. Verifica che contenga il foglio "PNL vs Forecast" nel formato corretto.',
@@ -1098,6 +1107,7 @@ const I18N = {
     tabPerformance: '📈 Performance',
     tabOperatori: '🏆 Operators',
     tabPnl: '💰 P&L',
+    esportaPdf: '📄 Export PDF',
     caricaPnl: 'Upload P&L vs Forecast',
     trasciaFilePnl: 'Drop the Excel file containing the "PNL vs Forecast" sheet',
     fileNonValidoPnl: 'Invalid file. Check that it contains the "PNL vs Forecast" sheet in the correct format.',
@@ -2489,6 +2499,105 @@ function closePnlPopup(){
   document.getElementById('pnl-popup-overlay').style.display='none';
   document.getElementById('pnl-popup').style.display='none';
   document.body.style.overflow='';
+}
+
+/* ── EXPORT P&L PAGE TO PDF ── */
+async function exportPnlPDF(){
+  const btn = document.getElementById('btn-export-pnl-pdf');
+  const exportArea = document.getElementById('pnl-export-area');
+  if(!exportArea) return;
+  if(!window.html2canvas || !window.jspdf){
+    showToast(currentLang==='en'?'PDF export libraries failed to load. Check your connection and try again.':'Le librerie per l\'export PDF non si sono caricate. Controlla la connessione e riprova.', 'error');
+    return;
+  }
+
+  const originalBtnText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = currentLang==='en' ? '⏳ Generating PDF…' : '⏳ Generazione PDF…';
+
+  /* remember which groups were open so we can restore the exact view afterwards,
+     then force every group open so the PDF always shows full cost detail */
+  const previouslyExpanded = new Set(pnlExpandedGroups);
+  const allGroupLabels = PNL_ROWS.filter(function(r){ return r.type==='group'; }).map(function(r){ return r.label; });
+  allGroupLabels.forEach(function(label){ pnlExpandedGroups.add(label); });
+  renderPnl();
+
+  /* give the browser a moment to finish laying out the now-larger table and
+     let Chart.js complete its default ~1s animation before we snapshot the DOM —
+     too short a wait here would capture charts mid-animation or empty */
+  await new Promise(function(resolve){ setTimeout(resolve, 1100); });
+
+  try{
+    const canvas = await html2canvas(exportArea, {
+      backgroundColor: getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#0a1525',
+      scale: 2,
+      useCORS: true
+    });
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation:'portrait', unit:'pt', format:'a4' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 24;
+    const usableWidth = pageWidth - margin*2;
+    const imgWidth = usableWidth;
+    const imgHeight = canvas.height * (imgWidth / canvas.width);
+
+    const imgData = canvas.toDataURL('image/png');
+
+    /* slice the tall captured image across as many A4 pages as needed */
+    let heightLeft = imgHeight;
+    let positionY = margin;
+    const usablePageHeight = pageHeight - margin*2;
+
+    /* title on first page */
+    pdf.setFontSize(14);
+    pdf.setTextColor(20,20,20);
+    pdf.text('Marathonbet Italia — P&L vs Forecast', margin, margin - 6);
+    const channelEl = document.getElementById('pnl-channel');
+    const segmentEl = document.getElementById('pnl-segment');
+    const metricEl  = document.getElementById('pnl-metric');
+    const sub = `${channelEl?channelEl.value:''} / ${segmentEl?segmentEl.value:''} — ${metricEl?metricEl.options[metricEl.selectedIndex].text:''} — ${new Date().toLocaleDateString(currentLang==='en'?'en-GB':'it-IT')}`;
+    pdf.setFontSize(9);
+    pdf.setTextColor(100,100,100);
+    pdf.text(sub, margin, margin + 8);
+    positionY = margin + 20;
+
+    let firstPage = true;
+    let sourceY = 0;
+    while(heightLeft > 0){
+      if(!firstPage) pdf.addPage();
+      const pageCanvasHeight = Math.min(usablePageHeight - (firstPage?20:0), heightLeft);
+      const sliceHeightPx = pageCanvasHeight * (canvas.width / imgWidth);
+
+      const sliceCanvas = document.createElement('canvas');
+      sliceCanvas.width = canvas.width;
+      sliceCanvas.height = sliceHeightPx;
+      const ctx = sliceCanvas.getContext('2d');
+      ctx.drawImage(canvas, 0, sourceY, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx);
+      const sliceData = sliceCanvas.toDataURL('image/png');
+
+      const yOnPage = firstPage ? positionY : margin;
+      pdf.addImage(sliceData, 'PNG', margin, yOnPage, imgWidth, pageCanvasHeight);
+
+      sourceY += sliceHeightPx;
+      heightLeft -= pageCanvasHeight;
+      firstPage = false;
+    }
+
+    const fileName = `Marathonbet_PnL_${new Date().toISOString().slice(0,10)}.pdf`;
+    pdf.save(fileName);
+    showToast(currentLang==='en'?'PDF exported successfully.':'PDF esportato con successo.');
+  }catch(e){
+    console.error('[P&L] PDF export error:', e);
+    showToast(currentLang==='en'?'PDF export failed.':'Esportazione PDF non riuscita.', 'error');
+  }finally{
+    /* restore the group expand/collapse state exactly as it was before exporting */
+    pnlExpandedGroups = previouslyExpanded;
+    renderPnl();
+    btn.disabled = false;
+    btn.innerHTML = originalBtnText;
+  }
 }
 
 /* ════════════════════════════════════════════════════
