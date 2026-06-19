@@ -2410,7 +2410,7 @@ function renderOperatori(){
     <tr>
       <th rowspan="2" style="vertical-align:bottom">${t('operatore')}</th>
       <th rowspan="2" style="vertical-align:bottom">${t('brand')}</th>
-      <th rowspan="2" style="vertical-align:bottom;border-left:2px solid rgba(232,0,28,.3)">${currentLang==='en'?'GGR variation (period)':'Variazione GGR (periodo)'}</th>
+      <th rowspan="2" style="vertical-align:bottom;border-left:2px solid rgba(232,0,28,.3);cursor:pointer;user-select:none;${opSortKey==='delta'?'color:var(--text)':''}" onclick="setOpSort('delta')">${currentLang==='en'?'GGR variation (period)':'Variazione GGR (periodo)'}${opSortKey==='delta'?(opSortDir===1?' ▲':' ▼'):''}</th>
       ${totalHeaderCell}
       ${monthCols}
     </tr>
