@@ -2071,6 +2071,16 @@ function cancelOpUpload(){
 function opMonths(){ return Object.keys(opDb).sort(); }
 let opTotalExpanded = false;
 function toggleOpTotal(){ opTotalExpanded = !opTotalExpanded; renderOperatori(); }
+/* sort state: sortKey identifies which column is active (e.g. 'total_ggr', '2026-05_turn',
+   'delta', 'name'); sortDir is 1 (ascending) or -1 (descending). Clicking the same header
+   again flips direction; clicking a new header starts descending (most useful first). */
+let opSortKey = null;
+let opSortDir = -1;
+function setOpSort(key){
+  if(opSortKey===key){ opSortDir = -opSortDir; }
+  else { opSortKey = key; opSortDir = -1; }
+  renderOperatori();
+}
 
 function saveOpDB(){
   try{ localStorage.setItem('mbt_op_db', JSON.stringify(opDb)); }catch(e){}
@@ -2283,17 +2293,38 @@ function renderOperatori(){
   /* sort by last month GGR descending by default */
   opList.sort(function(a,b){return b.lastGgr-a.lastGgr;});
 
+  /* small helper to render a sortable sub-header cell: shows the label, a ▲/▼ arrow
+     when this column is the active sort, and wires up the click to setOpSort(key) */
+  function sortableTh(label, key, extraStyle){
+    const isActive = opSortKey===key;
+    const arrow = isActive ? (opSortDir===1?' ▲':' ▼') : '';
+    return `<th class="th-num" style="cursor:pointer;user-select:none;${isActive?'color:var(--text)':''}${extraStyle||''}" onclick="setOpSort('${key}')">${label}${arrow}</th>`;
+  }
+
   if(filtMs.length===1){
     /* ── SIMPLE TABLE ── */
+    const simpleSortKeys = { name:'name', brand:'brand', turn:'m_turn', ggr:'m_ggr', mkt:'m_mkt' };
+    if(opSortKey){
+      opList = opList.slice().sort(function(a,b){
+        const ra=a.byMonth[lastM], rb=b.byMonth[lastM];
+        let va, vb;
+        if(opSortKey===simpleSortKeys.name){ va=a.operatore||''; vb=b.operatore||''; return opSortDir*va.localeCompare(vb); }
+        if(opSortKey===simpleSortKeys.brand){ va=a.brand||''; vb=b.brand||''; return opSortDir*va.localeCompare(vb); }
+        if(opSortKey===simpleSortKeys.turn){ va=ra?turnoverFor(ra):-Infinity; vb=rb?turnoverFor(rb):-Infinity; return opSortDir*(va-vb); }
+        if(opSortKey===simpleSortKeys.ggr){ va=ra?ggrFor(ra):-Infinity; vb=rb?ggrFor(rb):-Infinity; return opSortDir*(va-vb); }
+        if(opSortKey===simpleSortKeys.mkt){ va=ra?mktFor(ra):-Infinity; vb=rb?mktFor(rb):-Infinity; return opSortDir*(va-vb); }
+        return 0;
+      });
+    }
     document.getElementById('tbl-operatori').innerHTML = `
     <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;padding:12px 18px;border-bottom:1px solid var(--border)">
       ${t('rankingAffiliati')} — ${ml(lastM)}
     </div>
     <table><thead><tr>
       <th style="width:40px">${t('posizione')}</th>
-      <th>${t('operatore')}</th><th>${t('brand')}</th>
-      <th>${currentLang==='en'?'Turnover':'Giocato'}</th>
-      <th>${t('ggrTotaleOp')}</th><th>${t('mktShareTot')}</th>
+      ${sortableTh(t('operatore'), simpleSortKeys.name)}${sortableTh(t('brand'), simpleSortKeys.brand)}
+      ${sortableTh(currentLang==='en'?'Turnover':'Giocato', simpleSortKeys.turn)}
+      ${sortableTh(t('ggrTotaleOp'), simpleSortKeys.ggr)}${sortableTh(t('mktShareTot'), simpleSortKeys.mkt)}
     </tr></thead><tbody>${opList.map(function(o,i){
       const r=o.byMonth[lastM];
       if(!r) return '';
@@ -2318,21 +2349,56 @@ function renderOperatori(){
   const monthBlockBg = function(idx){ return idx%2===0 ? 'rgba(125,211,252,.03)' : 'transparent'; };
   const monthDivider = '3px solid rgba(125,211,252,.35)';
 
+  /* apply active sort across the whole multi-month list before rendering.
+     Sort keys: 'name', 'brand', 'delta' (period GGR variation %), 'total_turn',
+     'total_ggr', 'total_mkt', 'total_rank', or '{monthKey}_turn'/'_ggr'/'_mkt'/'_rank'/'_delta' */
+  if(opSortKey){
+    opList = opList.slice().sort(function(a,b){
+      let va, vb;
+      if(opSortKey==='name'){ return opSortDir*(a.operatore||'').localeCompare(b.operatore||''); }
+      if(opSortKey==='brand'){ return opSortDir*(a.brand||'').localeCompare(b.brand||''); }
+      if(opSortKey==='delta'){ va=a.deltaPct===null?-Infinity:a.deltaPct; vb=b.deltaPct===null?-Infinity:b.deltaPct; return opSortDir*(va-vb); }
+      if(opSortKey==='total_turn'){ va=periodTotals[a.brand]?periodTotals[a.brand].turn:-Infinity; vb=periodTotals[b.brand]?periodTotals[b.brand].turn:-Infinity; return opSortDir*(va-vb); }
+      if(opSortKey==='total_ggr'){ va=periodTotals[a.brand]?periodTotals[a.brand].ggr:-Infinity; vb=periodTotals[b.brand]?periodTotals[b.brand].ggr:-Infinity; return opSortDir*(va-vb); }
+      if(opSortKey==='total_mkt'){ va=periodTotals[a.brand]&&marketGgrTotal?periodTotals[a.brand].ggr/marketGgrTotal:-Infinity; vb=periodTotals[b.brand]&&marketGgrTotal?periodTotals[b.brand].ggr/marketGgrTotal:-Infinity; return opSortDir*(va-vb); }
+      if(opSortKey==='total_rank'){ va=periodRank[a.brand]||Infinity; vb=periodRank[b.brand]||Infinity; return -opSortDir*(va-vb); /* lower rank number = better, so invert */ }
+      /* per-month keys, e.g. "2026-05_ggr" */
+      const sep = opSortKey.lastIndexOf('_');
+      const mKey = opSortKey.slice(0, sep);
+      const field = opSortKey.slice(sep+1);
+      const ra = a.byMonth[mKey], rb = b.byMonth[mKey];
+      if(field==='turn'){ va=ra?turnoverFor(ra):-Infinity; vb=rb?turnoverFor(rb):-Infinity; return opSortDir*(va-vb); }
+      if(field==='ggr'){ va=ra?ggrFor(ra):-Infinity; vb=rb?ggrFor(rb):-Infinity; return opSortDir*(va-vb); }
+      if(field==='mkt'){ va=ra?mktFor(ra):-Infinity; vb=rb?mktFor(rb):-Infinity; return opSortDir*(va-vb); }
+      if(field==='rank'){ va=rankByMonth[mKey]&&ra?(rankByMonth[mKey][a.brand]||Infinity):Infinity; vb=rankByMonth[mKey]&&rb?(rankByMonth[mKey][b.brand]||Infinity):Infinity; return -opSortDir*(va-vb); }
+      if(field==='delta'){
+        const mIdx=filtMs.indexOf(mKey);
+        const prevM=mIdx>0?filtMs[mIdx-1]:null;
+        const rankA=ra?rankByMonth[mKey][a.brand]:null, rankB=rb?rankByMonth[mKey][b.brand]:null;
+        const prevRankA=prevM&&ra?rankByMonth[prevM][a.brand]:null, prevRankB=prevM&&rb?rankByMonth[prevM][b.brand]:null;
+        va=(rankA&&prevRankA)?(prevRankA-rankA):-Infinity;
+        vb=(rankB&&prevRankB)?(prevRankB-rankB):-Infinity;
+        return opSortDir*(va-vb);
+      }
+      return 0;
+    });
+  }
+
   const totalToggleLabel = opTotalExpanded
     ? (currentLang==='en'?'▾ Total':'▾ Totale')
     : (currentLang==='en'?'▸ Total':'▸ Totale');
   const totalColCount = opTotalExpanded ? 4 : 1;
-  const totalHeaderCell = `<th class="th-num" style="border-left:${monthDivider};cursor:pointer;user-select:none" colspan="${totalColCount}" onclick="toggleOpTotal()">${totalToggleLabel}</th>`;
+  const totalHeaderCell = `<th class="th-num" style="text-align:center;border-left:${monthDivider};cursor:pointer;user-select:none" colspan="${totalColCount}" onclick="toggleOpTotal()">${totalToggleLabel}</th>`;
   const totalSubHeaderCells = opTotalExpanded
-    ? `<th class="th-num" style="border-left:${monthDivider};font-size:10px">${currentLang==='en'?'Turnover':'Giocato'}</th><th class="th-num" style="font-size:10px">GGR</th><th class="th-num" style="font-size:10px">Mkt%</th><th class="th-num" style="font-size:10px">#</th>`
+    ? `${sortableTh(currentLang==='en'?'Turnover':'Giocato', 'total_turn', `border-left:${monthDivider};font-size:10px`)}${sortableTh('GGR', 'total_ggr', 'font-size:10px')}${sortableTh('Mkt%', 'total_mkt', 'font-size:10px')}${sortableTh('#', 'total_rank', 'font-size:10px')}`
     : `<th class="th-num" style="border-left:${monthDivider}"></th>`;
 
   const monthCols=displayMs.map(function(m,idx){
-    return `<th class="th-num" style="border-left:${monthDivider};background:${monthBlockBg(idx)}" colspan="5">${ml(m)}</th>`;
+    return `<th class="th-num" style="text-align:center;border-left:${monthDivider};background:${monthBlockBg(idx)}" colspan="5">${ml(m)}</th>`;
   }).join('');
   const monthSubCols=displayMs.map(function(m,idx){
     const bg=monthBlockBg(idx);
-    return `<th class="th-num" style="border-left:${monthDivider};font-size:10px;background:${bg}">${currentLang==='en'?'Turnover':'Giocato'}</th><th class="th-num" style="font-size:10px;background:${bg}">GGR</th><th class="th-num" style="font-size:10px;background:${bg}">Mkt%</th><th class="th-num" style="font-size:10px;background:${bg}">#</th><th class="th-num" style="font-size:10px;background:${bg}">Δ#</th>`;
+    return `${sortableTh(currentLang==='en'?'Turnover':'Giocato', m+'_turn', `border-left:${monthDivider};font-size:10px;background:${bg}`)}${sortableTh('GGR', m+'_ggr', `font-size:10px;background:${bg}`)}${sortableTh('Mkt%', m+'_mkt', `font-size:10px;background:${bg}`)}${sortableTh('#', m+'_rank', `font-size:10px;background:${bg}`)}${sortableTh('Δ#', m+'_delta', `font-size:10px;background:${bg}`)}`;
   }).join('');
 
   document.getElementById('tbl-operatori').innerHTML = `
