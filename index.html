@@ -620,20 +620,26 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
         </div>
       </div>
 
-      <div id="kpi-operatori" class="kpi-grid"></div>
-
-      <div class="charts-grid">
-        <div class="chart-card">
-          <div class="chart-card-title" data-i18n="trendGgrMarathonbet">Trend GGR Totale — Marathonbet</div>
-          <div style="position:relative;height:240px"><canvas id="chart-op-mbt-trend" role="img" aria-label="Trend GGR Marathonbet"></canvas></div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-card-title" data-i18n="top10Operatori">Top 10 operatori per GGR (ultimo mese)</div>
-          <div style="position:relative;height:240px"><canvas id="chart-op-top10" role="img" aria-label="Top 10 operatori"></canvas></div>
-        </div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+        <button class="header-btn" id="btn-export-op-pdf" onclick="exportOpPDF()" data-i18n="esportaPdf">📄 Esporta PDF</button>
       </div>
 
-      <div class="table-wrap"><div id="tbl-operatori"></div></div>
+      <div id="op-export-area">
+        <div id="kpi-operatori" class="kpi-grid"></div>
+
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-card-title" data-i18n="trendGgrMarathonbet">Trend GGR Totale — Marathonbet</div>
+            <div style="position:relative;height:240px"><canvas id="chart-op-mbt-trend" role="img" aria-label="Trend GGR Marathonbet"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-card-title" data-i18n="top10Operatori">Top 10 operatori per GGR (ultimo mese)</div>
+            <div style="position:relative;height:240px"><canvas id="chart-op-top10" role="img" aria-label="Top 10 operatori"></canvas></div>
+          </div>
+        </div>
+
+        <div class="table-wrap"><div id="tbl-operatori"></div></div>
+      </div>
     </div>
   </div>
 
@@ -2786,6 +2792,108 @@ async function exportPnlPDF(){
     /* restore the group expand/collapse state exactly as it was before exporting */
     pnlExpandedGroups = previouslyExpanded;
     renderPnl();
+    btn.disabled = false;
+    btn.innerHTML = originalBtnText;
+  }
+}
+
+/* ── EXPORT OPERATORI PAGE TO PDF ── */
+async function exportOpPDF(){
+  const btn = document.getElementById('btn-export-op-pdf');
+  const exportArea = document.getElementById('op-export-area');
+  if(!exportArea) return;
+  if(!window.html2canvas || !window.jspdf){
+    showToast(currentLang==='en'?'PDF export libraries failed to load. Check your connection and try again.':'Le librerie per l\'export PDF non si sono caricate. Controlla la connessione e riprova.', 'error');
+    return;
+  }
+
+  const originalBtnText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = currentLang==='en' ? '⏳ Generating PDF…' : '⏳ Generazione PDF…';
+
+  /* the table wrapper scrolls horizontally when there are many month columns —
+     html2canvas only captures the visible viewport of a scrollable element, so we
+     temporarily remove the scroll/overflow constraint to expose the table's full
+     width for the snapshot, then restore it exactly afterwards. Unlike the P&L
+     export, we deliberately do NOT touch any collapse/expand state here: the
+     person asked for the PDF to mirror the screen exactly as they left it. */
+  const scrollWraps = exportArea.querySelectorAll('div[style*="overflow-x:auto"]');
+  const restoreStyles = [];
+  scrollWraps.forEach(function(el){
+    restoreStyles.push({el:el, overflow:el.style.overflowX, width:el.style.width});
+    el.style.overflowX = 'visible';
+  });
+
+  /* give the browser a moment to finish reflowing the now-unconstrained table width */
+  await new Promise(function(resolve){ setTimeout(resolve, 150); });
+
+  try{
+    const canvas = await html2canvas(exportArea, {
+      backgroundColor: getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#0a1525',
+      scale: 2,
+      useCORS: true,
+      windowWidth: exportArea.scrollWidth,
+      width: exportArea.scrollWidth
+    });
+
+    const { jsPDF } = window.jspdf;
+    /* the Operatori table can end up wider than it is tall when many months are
+       expanded, so use landscape A4 — better fit than forcing portrait and
+       slicing into many narrow strips */
+    const pdf = new jsPDF({ orientation:'landscape', unit:'pt', format:'a4' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 24;
+    const usableWidth = pageWidth - margin*2;
+    const imgWidth = usableWidth;
+    const imgHeight = canvas.height * (imgWidth / canvas.width);
+
+    const usablePageHeight = pageHeight - margin*2;
+
+    pdf.setFontSize(14);
+    pdf.setTextColor(20,20,20);
+    pdf.text('Marathonbet Italia — Affiliate Ranking', margin, margin - 6);
+    const fromEl = document.getElementById('op-from');
+    const toEl = document.getElementById('op-to');
+    const prodEl = document.getElementById('op-product-filter');
+    const sub = `${fromEl?fromEl.options[fromEl.selectedIndex].text:''} → ${toEl?toEl.options[toEl.selectedIndex].text:''} — ${prodEl?prodEl.options[prodEl.selectedIndex].text:''} — ${new Date().toLocaleDateString(currentLang==='en'?'en-GB':'it-IT')}`;
+    pdf.setFontSize(9);
+    pdf.setTextColor(100,100,100);
+    pdf.text(sub, margin, margin + 8);
+    const positionY = margin + 20;
+
+    let heightLeft = imgHeight;
+    let firstPage = true;
+    let sourceY = 0;
+    while(heightLeft > 0){
+      if(!firstPage) pdf.addPage();
+      const pageCanvasHeight = Math.min(usablePageHeight - (firstPage?20:0), heightLeft);
+      const sliceHeightPx = pageCanvasHeight * (canvas.width / imgWidth);
+
+      const sliceCanvas = document.createElement('canvas');
+      sliceCanvas.width = canvas.width;
+      sliceCanvas.height = sliceHeightPx;
+      const ctx = sliceCanvas.getContext('2d');
+      ctx.drawImage(canvas, 0, sourceY, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx);
+      const sliceData = sliceCanvas.toDataURL('image/png');
+
+      const yOnPage = firstPage ? positionY : margin;
+      pdf.addImage(sliceData, 'PNG', margin, yOnPage, imgWidth, pageCanvasHeight);
+
+      sourceY += sliceHeightPx;
+      heightLeft -= pageCanvasHeight;
+      firstPage = false;
+    }
+
+    const fileName = `Marathonbet_Operatori_${new Date().toISOString().slice(0,10)}.pdf`;
+    pdf.save(fileName);
+    showToast(currentLang==='en'?'PDF exported successfully.':'PDF esportato con successo.');
+  }catch(e){
+    console.error('[Operatori] PDF export error:', e);
+    showToast(currentLang==='en'?'PDF export failed.':'Esportazione PDF non riuscita.', 'error');
+  }finally{
+    /* restore the original overflow behavior on the table wrapper(s) */
+    restoreStyles.forEach(function(s){ s.el.style.overflowX = s.overflow; });
     btn.disabled = false;
     btn.innerHTML = originalBtnText;
   }
