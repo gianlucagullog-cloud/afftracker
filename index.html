@@ -2073,6 +2073,8 @@ let opTotalExpanded = false;
 function toggleOpTotal(){ opTotalExpanded = !opTotalExpanded; renderOperatori(); }
 let opMonthsExpanded = false;
 function toggleOpMonths(){ opMonthsExpanded = !opMonthsExpanded; renderOperatori(); }
+let opVariationExpanded = false;
+function toggleOpVariation(){ opVariationExpanded = !opVariationExpanded; renderOperatori(); }
 /* sort state: sortKey identifies which column is active (e.g. 'total_ggr', '2026-05_turn',
    'delta', 'name'); sortDir is 1 (ascending) or -1 (descending). Clicking the same header
    again flips direction; clicking a new header starts descending (most useful first). */
@@ -2401,7 +2403,7 @@ function renderOperatori(){
     ? (currentLang==='en'?'▾ Total':'▾ Totale')
     : (currentLang==='en'?'▸ Total':'▸ Totale');
   const totalColCount = opTotalExpanded ? 4 : 1;
-  const totalHeaderCell = `<th class="th-num" style="text-align:center;border-left:${monthDivider};cursor:pointer;user-select:none" colspan="${totalColCount}" onclick="toggleOpTotal()">${totalToggleLabel}</th>`;
+  const totalHeaderCell = `<th class="th-num" style="text-align:center;border-left:${monthDivider};cursor:pointer;user-select:none;color:#7dd3fc" colspan="${totalColCount}" onclick="toggleOpTotal()">${totalToggleLabel}</th>`;
   const totalSubHeaderCells = opTotalExpanded
     ? `${sortableTh(currentLang==='en'?'Turnover':'Giocato', 'total_turn', `border-left:${monthDivider};font-size:10px`)}${sortableTh('GGR', 'total_ggr', 'font-size:10px')}${sortableTh('Mkt%', 'total_mkt', 'font-size:10px')}${sortableTh('#', 'total_rank', 'font-size:10px')}`
     : `<th class="th-num" style="border-left:${monthDivider}"></th>`;
@@ -2421,11 +2423,16 @@ function renderOperatori(){
     return `${sortableTh(currentLang==='en'?'Turnover':'Giocato', m+'_turn', `border-left:${monthDivider};font-size:10px;background:${bg}`)}${sortableTh('GGR', m+'_ggr', `font-size:10px;background:${bg}`)}${sortableTh('Mkt%', m+'_mkt', `font-size:10px;background:${bg}`)}${sortableTh('#', m+'_rank', `font-size:10px;background:${bg}`)}${sortableTh('Δ#', m+'_delta', `font-size:10px;background:${bg}`)}`;
   }
 
-  const middleToggleLabel = opMonthsExpanded
-    ? (currentLang==='en'?'▾ Months':'▾ Mesi')
-    : (currentLang==='en'?`▸ Months (${middleMonths.length})`:`▸ Mesi (${middleMonths.length})`);
-  const middleColCount = opMonthsExpanded ? middleMonths.length*5 : 1;
-  const middleHeaderCell = middleMonths.length ? `<th class="th-num" style="text-align:center;border-left:${monthDivider};cursor:pointer;user-select:none" colspan="${middleColCount}" onclick="toggleOpMonths()">${middleToggleLabel}</th>` : '';
+  /* the "expand/collapse middle months" toggle button sits on its own, always visible,
+     right next to the Totale toggle — so the person can tell it's there and clickable
+     whether the months are currently shown or hidden */
+  const middleToggleBtn = middleMonths.length
+    ? `<th rowspan="2" style="vertical-align:bottom;border-left:${monthDivider};cursor:pointer;user-select:none;font-size:11px;color:#7dd3fc" onclick="toggleOpMonths()">${opMonthsExpanded ? (currentLang==='en'?'▾ Collapse months':'▾ Comprimi mesi') : (currentLang==='en'?`▸ Show ${middleMonths.length} months`:`▸ Mostra ${middleMonths.length} mesi`)}</th>`
+    : '';
+
+  const middleHeaderCell = !middleMonths.length ? '' : (opMonthsExpanded
+    ? middleMonths.map(function(m,i){ return monthHeaderCell(m, i+1); }).join('')
+    : `<th class="th-num" style="border-left:${monthDivider}"></th>`);
   const middleSubHeaderCells = !middleMonths.length ? '' : (opMonthsExpanded
     ? middleMonths.map(function(m,i){ return monthSubHeaderCells(m, i+1); }).join('')
     : `<th class="th-num" style="border-left:${monthDivider}"></th>`);
@@ -2437,6 +2444,15 @@ function renderOperatori(){
     + middleSubHeaderCells
     + pinnedLast.map(function(m){ return monthSubHeaderCells(m,99); }).join('');
 
+  const variationToggleLabel = opVariationExpanded
+    ? (currentLang==='en'?'▾ Variation':'▾ Variazione')
+    : (currentLang==='en'?'▸ Variation':'▸ Variazione');
+  const variationColCount = opVariationExpanded ? 2 : 1;
+  const variationHeaderCell = `<th class="th-num" style="text-align:center;border-left:2px solid rgba(232,0,28,.3);cursor:pointer;user-select:none;color:#7dd3fc" colspan="${variationColCount}" onclick="toggleOpVariation()">${variationToggleLabel}</th>`;
+  const variationSubHeaderCells = !opVariationExpanded
+    ? `<th class="th-num" style="border-left:2px solid rgba(232,0,28,.3)"></th>`
+    : `<th class="th-num" style="border-left:2px solid rgba(232,0,28,.3);cursor:pointer;user-select:none;font-size:10px;${opSortKey==='delta'?'color:var(--text)':''}" onclick="setOpSort('delta')">${currentLang==='en'?'GGR var. (period)':'Variazione GGR'}${opSortKey==='delta'?(opSortDir===1?' ▲':' ▼'):''}</th><th class="th-num" style="cursor:pointer;user-select:none;font-size:10px;${opSortKey==='deltaAvg'?'color:var(--text)':''}" onclick="setOpSort('deltaAvg')">${currentLang==='en'?'Last mo. vs avg':'Ultimo vs media'}${opSortKey==='deltaAvg'?(opSortDir===1?' ▲':' ▼'):''}</th>`;
+
   document.getElementById('tbl-operatori').innerHTML = `
   <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;padding:12px 18px;border-bottom:1px solid var(--border)">
     ${t('rankingAffiliati')} — ${ml(firstM)} → ${ml(lastM)} (${filtMs.length} ${currentLang==='en'?'months':'mesi'}) — ${prod==='tot'?t('ggrTotaleOp'):prod==='sport'?t('ggrSport'):t('ggrCasino')}
@@ -2446,12 +2462,12 @@ function renderOperatori(){
     <tr>
       <th rowspan="2" style="vertical-align:bottom">${t('operatore')}</th>
       <th rowspan="2" style="vertical-align:bottom">${t('brand')}</th>
-      <th rowspan="2" style="vertical-align:bottom;border-left:2px solid rgba(232,0,28,.3);cursor:pointer;user-select:none;${opSortKey==='delta'?'color:var(--text)':''}" onclick="setOpSort('delta')">${currentLang==='en'?'GGR variation (period)':'Variazione GGR (periodo)'}${opSortKey==='delta'?(opSortDir===1?' ▲':' ▼'):''}</th>
-      <th rowspan="2" style="vertical-align:bottom;cursor:pointer;user-select:none;${opSortKey==='deltaAvg'?'color:var(--text)':''}" onclick="setOpSort('deltaAvg')">${currentLang==='en'?'Last month vs period avg':'Ultimo mese vs media periodo'}${opSortKey==='deltaAvg'?(opSortDir===1?' ▲':' ▼'):''}</th>
+      ${variationHeaderCell}
       ${totalHeaderCell}
+      ${middleToggleBtn}
       ${monthCols}
     </tr>
-    <tr>${totalSubHeaderCells}${monthSubCols}</tr>
+    <tr>${variationSubHeaderCells}${totalSubHeaderCells}${monthSubCols}</tr>
   </thead><tbody>${opList.map(function(o,i){
     const isMbt=o.brand.toLowerCase().includes('marathonbet');
     const tot=periodTotals[o.brand];
@@ -2495,11 +2511,13 @@ function renderOperatori(){
     const deltaAvgHTML = o.deltaVsAvgPct===null
       ? '<span style="color:var(--text3);font-size:12px">—</span>'
       : `<span class="var-chip ${o.deltaVsAvgPct>=0?'var-up':'var-down'}">${o.deltaVsAvgPct>=0?'▲':'▼'} ${Math.abs(o.deltaVsAvgPct).toFixed(1)}%</span>`;
+    const variationCells = !opVariationExpanded
+      ? `<td style="border-left:2px solid rgba(232,0,28,.3)"></td>`
+      : `<td style="border-left:2px solid rgba(232,0,28,.3)">${deltaHTML}</td><td>${deltaAvgHTML}</td>`;
     return`<tr class="clickable-row" onclick="openOpPopup('${o.brand}',${JSON.stringify(filtMs)})" style="cursor:pointer;${isMbt?'background:rgba(232,0,28,.06)':''}">
       <td><div style="font-size:12px;color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis">${o.operatore}</div></td>
       <td><div class="aff-code" style="${isMbt?'color:var(--red);font-weight:700':'color:var(--sky)'}">${o.brand}</div></td>
-      <td style="border-left:2px solid rgba(232,0,28,.3)">${deltaHTML}</td>
-      <td>${deltaAvgHTML}</td>
+      ${variationCells}
       ${totalCells}
       ${monthCells}
     </tr>`;
