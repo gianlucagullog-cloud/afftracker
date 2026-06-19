@@ -580,11 +580,11 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:14px 24
 
   <!-- OPERATORI -->
   <div id="tab-operatori" class="panel">
-    <div id="op-upload-section" class="upload-zone" onclick="document.getElementById('op-file-input').click()" style="margin-bottom:20px">
+    <div id="op-upload-section" style="margin-bottom:14px">
       <input type="file" id="op-file-input" accept=".xlsx,.xls" style="display:none" onchange="handleOpFile(event)">
-      <div class="upload-icon">🏆</div>
-      <div class="upload-title" data-i18n="caricaMarketShare">Carica Italy Market Share</div>
-      <div class="upload-sub" data-i18n="trasciaFileOperatori">Trascina qui il file Excel con i dati di market share mensili per operatore</div>
+      <button class="header-btn" onclick="document.getElementById('op-file-input').click()">
+        <span>🏆</span> <span data-i18n="caricaMarketShare">Carica Italy Market Share</span>
+      </button>
     </div>
     <div id="op-preview-zone" style="display:none;margin-bottom:20px">
       <div class="section-label" data-i18n="anteprimaDati">Anteprima dati</div>
@@ -2242,8 +2242,12 @@ function renderOperatori(){
   const toEl=document.getElementById('op-to');
   let fromV=fromEl?fromEl.value:'';
   let toV=toEl?toEl.value:'';
-  if(!fromV) fromV=ms[0];
+  /* default "Da mese" to November 2025 if it exists among the loaded data,
+     otherwise fall back to the earliest available month */
+  if(!fromV) fromV = ms.includes('2025-11') ? '2025-11' : ms[0];
   if(!toV) toV=ms[ms.length-1];
+  if(fromEl && !fromEl.value) fromEl.value=fromV;
+  if(toEl && !toEl.value) toEl.value=toV;
   let fi=ms.indexOf(fromV), ti=ms.indexOf(toV);
   if(fi<0) fi=0; if(ti<0) ti=ms.length-1;
   if(fi>ti){const tmp=fi;fi=ti;ti=tmp;}
@@ -2606,11 +2610,13 @@ function renderOperatori(){
     const variationCells = !opVariationExpanded
       ? `<td style="border-left:2px solid rgba(232,0,28,.3)"></td>`
       : `<td style="border-left:2px solid rgba(232,0,28,.3)">${deltaHTML}</td><td>${deltaAvgHTML}</td>`;
+    const middleToggleBtnPlaceholder = middleMonths.length ? `<td style="border-left:${monthDivider}"></td>` : '';
     return`<tr class="clickable-row" onclick="openOpPopup('${o.brand}',${JSON.stringify(filtMs)})" style="cursor:pointer;${isMbt?'background:rgba(232,0,28,.06)':''}">
       <td><div style="font-size:12px;color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis">${o.operatore}</div></td>
       <td><div class="aff-code" style="${isMbt?'color:var(--red);font-weight:700':'color:var(--sky)'}">${o.brand}</div></td>
       ${variationCells}
       ${totalCells}
+      ${middleToggleBtnPlaceholder}
       ${monthCells}
     </tr>`;
   }).join('')}</tbody></table>
@@ -2622,7 +2628,7 @@ function openOpPopup(brand, contextMonths){
   const ms = (contextMonths && contextMonths.length) ? contextMonths.slice().sort() : opMonths();
   /* gather entry for this brand across ALL available months (not just filtered context) for full history view, but cap to last 7 for table width like the spreadsheet */
   const allMs = opMonths();
-  const histMs = allMs.slice(-7);
+  const histMs = allMs.slice(-12);
 
   const entries = histMs.map(function(m){
     const rows=opDb[m]||[];
