@@ -2069,6 +2069,8 @@ function cancelOpUpload(){
 }
 
 function opMonths(){ return Object.keys(opDb).sort(); }
+let opTotalExpanded = false;
+function toggleOpTotal(){ opTotalExpanded = !opTotalExpanded; renderOperatori(); }
 
 function saveOpDB(){
   try{ localStorage.setItem('mbt_op_db', JSON.stringify(opDb)); }catch(e){}
@@ -2254,6 +2256,22 @@ function renderOperatori(){
     rows.forEach(function(r,i){ rankByMonth[m][r.brand]=i+1; });
   });
 
+  /* period totals: Turnover/GGR summed across filtMs for every operator seen in that
+     window (not just the currently filtered/searched list), so market share and rank
+     on the aggregate are computed against the full market, exactly like the monthly ones */
+  const periodTotals={};
+  filtMs.forEach(function(m){
+    (opDb[m]||[]).forEach(function(r){
+      if(!periodTotals[r.brand]) periodTotals[r.brand]={turn:0, ggr:0};
+      periodTotals[r.brand].turn += turnoverFor(r);
+      periodTotals[r.brand].ggr  += ggrFor(r);
+    });
+  });
+  const marketGgrTotal = Object.values(periodTotals).reduce(function(s,v){return s+v.ggr;}, 0);
+  const periodRankSorted = Object.keys(periodTotals).slice().sort(function(a,b){return periodTotals[b].ggr-periodTotals[a].ggr;});
+  const periodRank={};
+  periodRankSorted.forEach(function(brand,i){ periodRank[brand]=i+1; });
+
   opList.forEach(function(o){
     const lastEntry=o.byMonth[lastM];
     const firstEntry=o.byMonth[firstM];
@@ -2295,11 +2313,26 @@ function renderOperatori(){
   /* ── MULTI MONTH TABLE: per-month columns (Giocato / GGR / Mkt% / Rank / Δ Rank) ── */
   /* Most-recent month first (left to right), specific to this Operatori table */
   const displayMs = filtMs.slice().reverse();
-  const monthCols=displayMs.map(function(m){
-    return `<th class="th-num" style="border-left:1px solid var(--border)" colspan="5">${ml(m)}</th>`;
+  /* alternating subtle background per month block, plus a stronger colored
+     divider between blocks, so adjacent months are easy to tell apart at a glance */
+  const monthBlockBg = function(idx){ return idx%2===0 ? 'rgba(125,211,252,.03)' : 'transparent'; };
+  const monthDivider = '3px solid rgba(125,211,252,.35)';
+
+  const totalToggleLabel = opTotalExpanded
+    ? (currentLang==='en'?'▾ Total':'▾ Totale')
+    : (currentLang==='en'?'▸ Total':'▸ Totale');
+  const totalColCount = opTotalExpanded ? 4 : 1;
+  const totalHeaderCell = `<th class="th-num" style="border-left:${monthDivider};cursor:pointer;user-select:none" colspan="${totalColCount}" onclick="toggleOpTotal()">${totalToggleLabel}</th>`;
+  const totalSubHeaderCells = opTotalExpanded
+    ? `<th class="th-num" style="border-left:${monthDivider};font-size:10px">${currentLang==='en'?'Turnover':'Giocato'}</th><th class="th-num" style="font-size:10px">GGR</th><th class="th-num" style="font-size:10px">Mkt%</th><th class="th-num" style="font-size:10px">#</th>`
+    : `<th class="th-num" style="border-left:${monthDivider}"></th>`;
+
+  const monthCols=displayMs.map(function(m,idx){
+    return `<th class="th-num" style="border-left:${monthDivider};background:${monthBlockBg(idx)}" colspan="5">${ml(m)}</th>`;
   }).join('');
-  const monthSubCols=displayMs.map(function(){
-    return `<th class="th-num" style="border-left:1px solid var(--border);font-size:10px">${currentLang==='en'?'Turnover':'Giocato'}</th><th class="th-num" style="font-size:10px">GGR</th><th class="th-num" style="font-size:10px">Mkt%</th><th class="th-num" style="font-size:10px">#</th><th class="th-num" style="font-size:10px">Δ#</th>`;
+  const monthSubCols=displayMs.map(function(m,idx){
+    const bg=monthBlockBg(idx);
+    return `<th class="th-num" style="border-left:${monthDivider};font-size:10px;background:${bg}">${currentLang==='en'?'Turnover':'Giocato'}</th><th class="th-num" style="font-size:10px;background:${bg}">GGR</th><th class="th-num" style="font-size:10px;background:${bg}">Mkt%</th><th class="th-num" style="font-size:10px;background:${bg}">#</th><th class="th-num" style="font-size:10px;background:${bg}">Δ#</th>`;
   }).join('');
 
   document.getElementById('tbl-operatori').innerHTML = `
@@ -2312,14 +2345,26 @@ function renderOperatori(){
       <th rowspan="2" style="vertical-align:bottom">${t('operatore')}</th>
       <th rowspan="2" style="vertical-align:bottom">${t('brand')}</th>
       <th rowspan="2" style="vertical-align:bottom;border-left:2px solid rgba(232,0,28,.3)">${currentLang==='en'?'GGR variation (period)':'Variazione GGR (periodo)'}</th>
+      ${totalHeaderCell}
       ${monthCols}
     </tr>
-    <tr>${monthSubCols}</tr>
+    <tr>${totalSubHeaderCells}${monthSubCols}</tr>
   </thead><tbody>${opList.map(function(o,i){
     const isMbt=o.brand.toLowerCase().includes('marathonbet');
-    const monthCells=displayMs.map(function(m){
+    const tot=periodTotals[o.brand];
+    let totalCells;
+    if(!opTotalExpanded){
+      totalCells = `<td style="border-left:${monthDivider}"></td>`;
+    } else if(!tot){
+      totalCells = `<td class="td-num" style="border-left:${monthDivider};color:var(--text3)">—</td><td class="td-num" style="color:var(--text3)">—</td><td class="td-num" style="color:var(--text3)">—</td><td class="td-num" style="color:var(--text3)">—</td>`;
+    } else {
+      const totMktShare = marketGgrTotal ? (tot.ggr/marketGgrTotal) : 0;
+      totalCells = `<td class="td-num" style="border-left:${monthDivider};font-weight:700">${fe(tot.turn)}</td><td class="td-num" style="font-weight:700">${fe(tot.ggr)}</td><td class="td-num" style="font-weight:700">${fp(totMktShare*100)}</td><td class="td-num" style="color:#7dd3fc;font-weight:700">#${periodRank[o.brand]||'—'}</td>`;
+    }
+    const monthCells=displayMs.map(function(m,idx){
+      const bg=monthBlockBg(idx);
       const r=o.byMonth[m];
-      if(!r) return `<td class="td-num" style="border-left:1px solid var(--border);color:var(--text3)">—</td><td class="td-num" style="color:var(--text3)">—</td><td class="td-num" style="color:var(--text3)">—</td><td class="td-num" style="color:var(--text3)">—</td><td class="td-num" style="color:var(--text3)">—</td>`;
+      if(!r) return `<td class="td-num" style="border-left:${monthDivider};color:var(--text3);background:${bg}">—</td><td class="td-num" style="color:var(--text3);background:${bg}">—</td><td class="td-num" style="color:var(--text3);background:${bg}">—</td><td class="td-num" style="color:var(--text3);background:${bg}">—</td><td class="td-num" style="color:var(--text3);background:${bg}">—</td>`;
       const rank=rankByMonth[m][o.brand];
       /* compare against the chronologically previous month (one step back in filtMs,
          not whatever sits visually to the right now that columns are reversed) */
@@ -2333,7 +2378,7 @@ function renderOperatori(){
         else if(diff<0) deltaRankHtml=`<span style="color:#f87171;font-weight:600">▼${Math.abs(diff)}</span>`;
         else deltaRankHtml=`<span style="color:var(--text3)">＝</span>`;
       }
-      return `<td class="td-num" style="border-left:1px solid var(--border)">${fe(turnoverFor(r))}</td><td class="td-num">${fe(ggrFor(r))}</td><td class="td-num">${fp(mktFor(r)*100)}</td><td class="td-num" style="color:#7dd3fc;font-weight:600">#${rank||'—'}</td><td class="td-num">${deltaRankHtml}</td>`;
+      return `<td class="td-num" style="border-left:${monthDivider};background:${bg}">${fe(turnoverFor(r))}</td><td class="td-num" style="background:${bg}">${fe(ggrFor(r))}</td><td class="td-num" style="background:${bg}">${fp(mktFor(r)*100)}</td><td class="td-num" style="color:#7dd3fc;font-weight:600;background:${bg}">#${rank||'—'}</td><td class="td-num" style="background:${bg}">${deltaRankHtml}</td>`;
     }).join('');
     const deltaHTML = o.deltaPct===null
       ? '<span style="color:var(--text3);font-size:12px">—</span>'
@@ -2342,6 +2387,7 @@ function renderOperatori(){
       <td><div style="font-size:12px;color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis">${o.operatore}</div></td>
       <td><div class="aff-code" style="${isMbt?'color:var(--red);font-weight:700':'color:var(--sky)'}">${o.brand}</div></td>
       <td style="border-left:2px solid rgba(232,0,28,.3)">${deltaHTML}</td>
+      ${totalCells}
       ${monthCells}
     </tr>`;
   }).join('')}</tbody></table>
