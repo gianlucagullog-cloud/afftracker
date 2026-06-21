@@ -3355,15 +3355,84 @@ const INVESTMENT_PLAN = [
 ];
 
 let invInvoices = []; /* {id, macroId, subIndex(or null), amount, description, date, fileName, fileType, fileDataUrl, uploadedAt} */
+/* Editable targets, layered on top of INVESTMENT_PLAN's document defaults:
+   - invMacroTargets[macroId][year] overrides macro.target[year] once the person edits it directly
+   - invSubTargets[macroId][year][subIndex] is each sub-item's own € goal, starting at 0 until set manually */
+let invMacroTargets = {};
+let invSubTargets = {};
+
+function getMacroTarget(macro, year){
+  if(invMacroTargets[macro.id] && invMacroTargets[macro.id][year]!==undefined) return invMacroTargets[macro.id][year];
+  return macro.target[year];
+}
+function getSubTarget(macro, year, subIndex){
+  if(invSubTargets[macro.id] && invSubTargets[macro.id][year] && invSubTargets[macro.id][year][subIndex]!==undefined){
+    return invSubTargets[macro.id][year][subIndex];
+  }
+  return 0;
+}
+function sumSubTargets(macro, year){
+  return macro.subItems.reduce(function(s,_,i){ return s+getSubTarget(macro,year,i); }, 0);
+}
+
+/* Editing a single sub-item's target: just store the new value, then the macro
+   total is always read as the sum of all sub-targets from that point on — so the
+   macro automatically reflects the edit without any further action. */
+function setSubTarget(macroId, year, subIndex, value){
+  if(!invSubTargets[macroId]) invSubTargets[macroId]={};
+  if(!invSubTargets[macroId][year]) invSubTargets[macroId][year]={};
+  invSubTargets[macroId][year][subIndex]=value;
+  /* once any sub-target is edited, the macro total becomes "sum of sub-targets"
+     going forward — store that derived sum as the macro's own override too, so
+     getMacroTarget stays consistent even before the next render recomputes it */
+  const macro = INVESTMENT_PLAN.find(function(m){ return m.id===macroId; });
+  if(macro){
+    if(!invMacroTargets[macroId]) invMacroTargets[macroId]={};
+    invMacroTargets[macroId][year]=sumSubTargets(macro, year);
+  }
+}
+
+/* Editing the macro total directly: rescale every sub-item proportionally to the
+   share it held of the OLD macro total, so relative weights are preserved. If the
+   old total was zero (nothing set yet), split the new total evenly instead, since
+   there's no existing proportion to preserve. */
+function setMacroTarget(macroId, year, newValue){
+  const macro = INVESTMENT_PLAN.find(function(m){ return m.id===macroId; });
+  if(!macro) return;
+  const oldTotal = getMacroTarget(macro, year);
+  if(!invSubTargets[macroId]) invSubTargets[macroId]={};
+  if(!invSubTargets[macroId][year]) invSubTargets[macroId][year]={};
+  const n = macro.subItems.length;
+  if(!oldTotal || oldTotal===0){
+    const equalShare = newValue/n;
+    macro.subItems.forEach(function(_,i){ invSubTargets[macroId][year][i]=equalShare; });
+  } else {
+    macro.subItems.forEach(function(_,i){
+      const oldSubVal = getSubTarget(macro, year, i);
+      const share = oldSubVal/oldTotal;
+      invSubTargets[macroId][year][i]=share*newValue;
+    });
+  }
+  if(!invMacroTargets[macroId]) invMacroTargets[macroId]={};
+  invMacroTargets[macroId][year]=newValue;
+}
 
 function loadInvDB(){
   try{
     const raw = localStorage.getItem('mbt_inv_db');
-    if(raw) invInvoices = JSON.parse(raw);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(Array.isArray(parsed)){ invInvoices = parsed; } /* backward compatibility with the old array-only format */
+      else {
+        invInvoices = parsed.invoices || [];
+        invMacroTargets = parsed.macroTargets || {};
+        invSubTargets = parsed.subTargets || {};
+      }
+    }
   }catch(e){}
 }
 function saveInvDB(){
-  try{ localStorage.setItem('mbt_inv_db', JSON.stringify(invInvoices)); }catch(e){}
+  try{ localStorage.setItem('mbt_inv_db', JSON.stringify({invoices:invInvoices, macroTargets:invMacroTargets, subTargets:invSubTargets})); }catch(e){}
   syncInvToFirestore();
 }
 async function syncInvToFirestore(){
@@ -3371,7 +3440,9 @@ async function syncInvToFirestore(){
   try{
     const docId = currentUser.uid + '_investimenti';
     await fbDb.collection('investimentiData').doc(docId).set({
-      userId: currentUser.uid, data: invInvoices, updatedAt: new Date().toISOString()
+      userId: currentUser.uid,
+      data: {invoices:invInvoices, macroTargets:invMacroTargets, subTargets:invSubTargets},
+      updatedAt: new Date().toISOString()
     });
   }catch(e){ console.error('[Investimenti] Firestore save error:', e); }
 }
@@ -3383,7 +3454,15 @@ async function loadInvFromFirestore(){
     const doc = await fbDb.collection('investimentiData').doc(docId).get();
     if(doc.exists){
       const d=doc.data();
-      if(d.data){ invInvoices=d.data; renderInvestimenti(); }
+      if(d.data){
+        if(Array.isArray(d.data)){ invInvoices=d.data; } /* backward compatibility */
+        else {
+          invInvoices = d.data.invoices || [];
+          invMacroTargets = d.data.macroTargets || {};
+          invSubTargets = d.data.subTargets || {};
+        }
+        renderInvestimenti();
+      }
     }
   }catch(e){ console.error('[Investimenti] Firestore load error:', e); }
 }
@@ -3483,61 +3562,119 @@ function renderInvestimenti(){
   if(!yearSel.options.length) return; /* not yet populated this render pass */
   const year = parseInt(yearSel.value||'1', 10);
 
+  function progressColor(pct){ return pct>=100 ? '#22c55e' : (pct>=60 ? '#7dd3fc' : '#f59e0b'); }
+
   const cardsHtml = INVESTMENT_PLAN.map(function(macro){
-    const target = macro.target[year];
+    const target = getMacroTarget(macro, year);
     const macroInvoices = invInvoices.filter(function(inv){ return inv.macroId===macro.id; });
     const totalRaised = macroInvoices.reduce(function(s,inv){ return s+inv.amount; }, 0);
     const pct = target ? Math.min(100, (totalRaised/target)*100) : 0;
-    const barColor = pct>=100 ? '#22c55e' : (pct>=60 ? '#7dd3fc' : '#f59e0b');
+    const barColor = progressColor(pct);
 
-    const subBreakdown = macro.subItems.map(function(sub,i){
+    const subItemsHtml = macro.subItems.map(function(sub, i){
+      const subTarget = getSubTarget(macro, year, i);
       const subInvoices = macroInvoices.filter(function(inv){ return inv.subIndex===i; });
-      const subTotal = subInvoices.reduce(function(s,inv){ return s+inv.amount; }, 0);
-      if(!subInvoices.length) return '';
-      return `<div style="padding:8px 0;border-top:1px solid var(--border)">
-        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">${sub}</div>
-        <div style="font-size:11px;color:var(--text3)">${fe(subTotal)} — ${subInvoices.length} ${currentLang==='en'?(subInvoices.length===1?'invoice':'invoices'):(subInvoices.length===1?'fattura':'fatture')}</div>
+      const subRaised = subInvoices.reduce(function(s,inv){ return s+inv.amount; }, 0);
+      const subPct = subTarget ? Math.min(100, (subRaised/subTarget)*100) : 0;
+      const subBarColor = progressColor(subPct);
+      const inputId = `inv-sub-target-${macro.id}-${year}-${i}`;
+      const subInvoiceRows = subInvoices.slice().sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); }).map(function(inv){
+        return `<tr>
+          <td style="font-size:11px;color:var(--text3)">${inv.date||'—'}</td>
+          <td style="font-size:11px;color:var(--text2);max-width:200px;overflow:hidden;text-overflow:ellipsis">${inv.description||'—'}</td>
+          <td class="td-num" style="font-size:11px;font-weight:600">${fe(inv.amount)}</td>
+          <td><span class="aff-code" style="color:var(--sky);cursor:pointer;font-size:11px" onclick="viewInvoiceFile('${inv.id}')">📎 ${inv.fileName}</span></td>
+          <td>${isAdminUser?`<button class="btn-cancel" style="padding:2px 8px;font-size:10px" onclick="deleteInvoice('${inv.id}')">✕</button>`:''}</td>
+        </tr>`;
+      }).join('');
+
+      return `
+      <div style="padding:12px 0;border-top:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:10px;margin-bottom:8px">
+          <div style="font-size:12px;color:var(--text2);max-width:480px">${sub}</div>
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+            ${isAdminUser ? `
+            <input type="number" step="0.01" min="0" class="tbl-search" id="${inputId}" value="${subTarget.toFixed(2)}" style="width:120px;font-size:12px">
+            <button class="header-btn" style="padding:4px 10px;font-size:11px" onclick="saveSubTargetFromInput('${macro.id}',${year},${i},'${inputId}')">${currentLang==='en'?'Save':'Salva'}</button>
+            ` : `<span style="font-size:12px;color:var(--text2)">${fe(subTarget)}</span>`}
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+          <div style="background:var(--border);border-radius:6px;height:8px;flex:1;overflow:hidden">
+            <div style="background:${subBarColor};height:100%;width:${subPct}%;transition:width .3s"></div>
+          </div>
+          <div style="font-size:11px;color:var(--text3);white-space:nowrap">${fe(subRaised)} / ${fe(subTarget)} (${subPct.toFixed(1)}%)</div>
+        </div>
+        ${subInvoices.length ? `<div style="overflow-x:auto;margin-top:6px"><table><tbody>${subInvoiceRows}</tbody></table></div>` : ''}
       </div>`;
     }).join('');
 
     const unassignedInvoices = macroInvoices.filter(function(inv){ return inv.subIndex===null; });
-
-    const invoiceRows = macroInvoices.slice().sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); }).map(function(inv){
-      const subLabel = inv.subIndex!==null ? macro.subItems[inv.subIndex] : (currentLang==='en'?'(macro-section only)':'(solo macrosezione)');
+    const unassignedRows = unassignedInvoices.slice().sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); }).map(function(inv){
       return `<tr>
-        <td style="font-size:12px">${inv.date||'—'}</td>
-        <td style="font-size:12px;color:var(--text2);max-width:220px;overflow:hidden;text-overflow:ellipsis">${inv.description||'—'}</td>
-        <td style="font-size:11px;color:var(--text3);max-width:200px;overflow:hidden;text-overflow:ellipsis">${subLabel}</td>
-        <td class="td-num" style="font-weight:600">${fe(inv.amount)}</td>
-        <td><span class="aff-code" style="color:var(--sky);cursor:pointer" onclick="viewInvoiceFile('${inv.id}')">📎 ${inv.fileName}</span></td>
-        <td>${isAdminUser?`<button class="btn-cancel" style="padding:4px 10px;font-size:11px" onclick="deleteInvoice('${inv.id}')">✕</button>`:''}</td>
+        <td style="font-size:11px;color:var(--text3)">${inv.date||'—'}</td>
+        <td style="font-size:11px;color:var(--text2);max-width:200px;overflow:hidden;text-overflow:ellipsis">${inv.description||'—'}</td>
+        <td class="td-num" style="font-size:11px;font-weight:600">${fe(inv.amount)}</td>
+        <td><span class="aff-code" style="color:var(--sky);cursor:pointer;font-size:11px" onclick="viewInvoiceFile('${inv.id}')">📎 ${inv.fileName}</span></td>
+        <td>${isAdminUser?`<button class="btn-cancel" style="padding:2px 8px;font-size:10px" onclick="deleteInvoice('${inv.id}')">✕</button>`:''}</td>
       </tr>`;
     }).join('');
+
+    const macroInputId = `inv-macro-target-${macro.id}-${year}`;
 
     return `
     <div class="table-wrap" style="margin-bottom:20px">
       <div style="padding:18px">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:10px;margin-bottom:12px">
           <div style="font-size:14px;font-weight:700;color:var(--text)">${macro.label}</div>
-          <div style="font-size:13px;color:var(--text2)">${fe(totalRaised)} / ${fe(target)} <span style="color:${barColor};font-weight:700">(${pct.toFixed(1)}%)</span></div>
+          <div style="display:flex;align-items:center;gap:8px">
+            ${isAdminUser ? `
+            <span style="font-size:11px;color:var(--text3)">${currentLang==='en'?'Target':'Obiettivo'} €</span>
+            <input type="number" step="0.01" min="0" class="tbl-search" id="${macroInputId}" value="${target.toFixed(2)}" style="width:140px;font-size:13px;font-weight:600">
+            <button class="header-btn" onclick="saveMacroTargetFromInput('${macro.id}',${year},'${macroInputId}')">${currentLang==='en'?'Save':'Salva'}</button>
+            ` : ''}
+            <span style="font-size:13px;color:var(--text2)">${fe(totalRaised)} / ${fe(target)} <span style="color:${barColor};font-weight:700">(${pct.toFixed(1)}%)</span></span>
+          </div>
         </div>
-        <div style="background:var(--border);border-radius:8px;height:14px;overflow:hidden;margin-bottom:14px">
+        <div style="background:var(--border);border-radius:8px;height:14px;overflow:hidden;margin-bottom:6px">
           <div style="background:${barColor};height:100%;width:${pct}%;transition:width .3s"></div>
         </div>
-        ${macroInvoices.length ? `<div style="overflow-x:auto"><table><thead><tr>
-          <th style="font-size:10px">${currentLang==='en'?'Date':'Data'}</th>
-          <th style="font-size:10px">${currentLang==='en'?'Description':'Descrizione'}</th>
-          <th style="font-size:10px">${currentLang==='en'?'Sub-item':'Sottovoce'}</th>
-          <th class="th-num" style="font-size:10px">${currentLang==='en'?'Amount':'Importo'}</th>
-          <th style="font-size:10px">${currentLang==='en'?'File':'File'}</th>
-          <th style="font-size:10px"></th>
-        </tr></thead><tbody>${invoiceRows}</tbody></table></div>`
-        : `<div style="font-size:12px;color:var(--text3);padding:10px 0">${currentLang==='en'?'No invoices assigned yet.':'Nessuna fattura assegnata.'}</div>`}
+        ${isAdminUser ? `<div style="font-size:10px;color:var(--text3);margin-bottom:6px">${currentLang==='en'?'Editing the macro-section target rescales every sub-item proportionally. Editing a sub-item updates this total automatically.':"Modificando l'obiettivo della macrosezione, le sottovoci vengono riscalate proporzionalmente. Modificando una sottovoce, questo totale si aggiorna automaticamente."}</div>` : ''}
+
+        <div style="margin-top:10px">${subItemsHtml}</div>
+
+        ${unassignedInvoices.length ? `
+        <div style="padding:12px 0;border-top:2px solid var(--border)">
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">${currentLang==='en'?'Assigned to macro-section only':'Assegnate solo alla macrosezione'}</div>
+          <div style="overflow-x:auto"><table><tbody>${unassignedRows}</tbody></table></div>
+        </div>` : ''}
       </div>
     </div>`;
   }).join('');
 
   document.getElementById('inv-macro-cards').innerHTML = cardsHtml;
+}
+
+function saveSubTargetFromInput(macroId, year, subIndex, inputId){
+  if(!isAdminUser){ showToast(currentLang==='en'?'Only the administrator can edit targets.':'Solo l\'amministratore può modificare gli obiettivi.', 'error'); return; }
+  const input = document.getElementById(inputId);
+  const value = parseFloat(input.value);
+  if(isNaN(value) || value<0){ showToast(currentLang==='en'?'Please enter a valid amount.':'Inserisci un importo valido.', 'error'); return; }
+  setSubTarget(macroId, year, subIndex, value);
+  saveInvDB();
+  renderInvestimenti();
+  showToast(currentLang==='en'?'Target saved.':'Obiettivo salvato.');
+}
+
+function saveMacroTargetFromInput(macroId, year, inputId){
+  if(!isAdminUser){ showToast(currentLang==='en'?'Only the administrator can edit targets.':'Solo l\'amministratore può modificare gli obiettivi.', 'error'); return; }
+  const input = document.getElementById(inputId);
+  const value = parseFloat(input.value);
+  if(isNaN(value) || value<0){ showToast(currentLang==='en'?'Please enter a valid amount.':'Inserisci un importo valido.', 'error'); return; }
+  setMacroTarget(macroId, year, value);
+  saveInvDB();
+  renderInvestimenti();
+  showToast(currentLang==='en'?'Target saved — sub-items rescaled proportionally.':'Obiettivo salvato — sottovoci riscalate proporzionalmente.');
 }
 
 
